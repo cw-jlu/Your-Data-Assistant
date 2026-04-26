@@ -1,0 +1,39 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv
+.python-version
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+.codex
+
+# Local data, docs, tests, and artifacts
+data/
+docs/
+tests/
+evaluation/
+artifacts/*
+!artifacts/.gitkeep
+
+# Local configs
+configs/*
+!configs/react_baseline.example.yaml
+
+# OS / notebook noise
+.DS_Store
+.ipynb_checkpoints/

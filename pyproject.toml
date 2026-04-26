@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-agent-baseline"
+version = "0.1.0"
+description = "ReAct-style baseline for the DABench data-agent benchmark"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets>=3.3.2",
+    "duckdb>=1.5.0",
+    "huggingface-hub>=0.29.3",
+    "numpy>=2.2.6",
+    "openai>=2.28.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.3",
+    "polars>=1.39.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.10.6",
+    "pyyaml>=6.0.2",
+    "rich>=13.9.4",
+    "typer>=0.15.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.5",
+    "ruff>=0.11.0",
+]
+
+[project.scripts]
+dabench = "data_agent_baseline.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
