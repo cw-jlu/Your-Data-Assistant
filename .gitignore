@@ -27,7 +27,7 @@ data/
 docs/
 tests/
 evaluation/
-artifacts/*
+# artifacts/*
 !artifacts/.gitkeep
 
 # Local configs

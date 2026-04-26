@@ -1,0 +1,8 @@
+{
+  "task_id": "task_38",
+  "answer": null,
+  "steps": [],
+  "failure_reason": "Task timed out after 600 seconds.",
+  "succeeded": false,
+  "e2e_elapsed_seconds": 600.127
+}
