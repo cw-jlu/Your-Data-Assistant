@@ -23,7 +23,7 @@ from data_agent_baseline.tools.registry import ToolRegistry
 @dataclass(frozen=True, slots=True)
 class ReActAgentConfig:
     # 最大步数，防止 Agent 进入无限循环
-    max_steps: int = 16
+    max_steps: int = 50
 
 
 # 清理模型输出中的 Markdown 代码块（JSON 围栏）

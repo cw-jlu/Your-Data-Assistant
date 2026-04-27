@@ -38,6 +38,7 @@ def build_system_prompt(tool_descriptions: str, system_prompt: str | None = None
 def build_task_prompt(task: PublicTask) -> str:
     return (
         f"Question: {task.question}\n"
+        f"Task Difficulty: {task.difficulty}\n"
         "All tool file paths are relative to the task context directory. "
         "When you have the final table, call the `answer` tool."
     )
