@@ -299,6 +299,14 @@ def run_benchmark(
             "task_count": len(task_artifacts),
             "succeeded_task_count": sum(1 for artifact in task_artifacts if artifact.succeeded),
             "max_workers": effective_workers,
+            "config": {
+                "agent": {
+                    "model": config.agent.model,
+                    "max_steps": config.agent.max_steps,
+                    "temperature": config.agent.temperature,
+                    "max_tokens": config.agent.max_tokens,
+                }
+            },
             "tasks": [artifact.to_dict() for artifact in task_artifacts],
         },
     )
