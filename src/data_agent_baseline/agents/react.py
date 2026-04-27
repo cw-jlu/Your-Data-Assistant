@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from data_agent_baseline.agents.model import ModelAdapter, ModelMessage, ModelStep
 from data_agent_baseline.agents.prompt import (
@@ -104,37 +105,30 @@ class ReActAgent:
         return messages
 
     # 启动 Agent 解决指定的任务
-    def run(self, task: PublicTask) -> AgentRunResult:
+    def run(self, task: PublicTask, task_output_dir: Path | None = None) -> AgentRunResult:
         state = AgentRuntimeState()
+        
+        def _log(msg: str):
+            if task_output_dir:
+                log_file = task_output_dir / "agent.log"
+                with log_file.open("a", encoding="utf-8") as f:
+                    f.write(msg + "\n")
+
+        _log(f"=== Starting Task {task.task_id} ===")
+        
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         for step_index in range(1, self.config.max_steps + 1):
+            _log(f"\n--- Step {step_index} ---")
             raw_response = self.model.complete(self._build_messages(task, state))
+            _log(f"Model Response:\n{raw_response}")
             try:
                 model_step = parse_model_step(raw_response)
-                tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
-                observation = {
-                    "ok": tool_result.ok,
-                    "tool": model_step.action,
-                    "content": tool_result.content,
-                }
-                step_record = StepRecord(
-                    step_index=step_index,
-                    thought=model_step.thought,
-                    action=model_step.action,
-                    action_input=model_step.action_input,
-                    raw_response=raw_response,
-                    observation=observation,
-                    ok=tool_result.ok,
-                )
-                state.steps.append(step_record)
-                if tool_result.is_terminal:
-                    state.answer = tool_result.answer
-                    break
             except Exception as exc:
                 observation = {
                     "ok": False,
                     "error": f"Failed to parse response: {exc}. Please check your JSON format, ensure you output exactly one complete JSON block without being truncated, and try again.",
                 }
+                _log(f"Parse Error:\n{observation['error']}")
                 state.steps.append(
                     StepRecord(
                         step_index=step_index,
@@ -146,9 +140,53 @@ class ReActAgent:
                         ok=False,
                     )
                 )
+                continue
+
+            try:
+                tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
+                observation = {
+                    "ok": tool_result.ok,
+                    "tool": model_step.action,
+                    "content": tool_result.content,
+                }
+                _log(f"Tool Result ({model_step.action}):\n{json.dumps(observation, ensure_ascii=False, indent=2)}")
+                step_record = StepRecord(
+                    step_index=step_index,
+                    thought=model_step.thought,
+                    action=model_step.action,
+                    action_input=model_step.action_input,
+                    raw_response=raw_response,
+                    observation=observation,
+                    ok=tool_result.ok,
+                )
+                state.steps.append(step_record)
+                if tool_result.is_terminal:
+                    _log("Terminal tool called. Ending loop.")
+                    state.answer = tool_result.answer
+                    break
+            except Exception as exc:
+                observation = {
+                    "ok": False,
+                    "error": f"Tool execution failed: {exc}. Please check your action_input and try again.",
+                }
+                _log(f"Tool Error ({model_step.action}):\n{observation['error']}")
+                state.steps.append(
+                    StepRecord(
+                        step_index=step_index,
+                        thought=model_step.thought,
+                        action=model_step.action,
+                        action_input=model_step.action_input,
+                        raw_response=raw_response,
+                        observation=observation,
+                        ok=False,
+                    )
+                )
 
         if state.answer is None and state.failure_reason is None:
             state.failure_reason = "Agent did not submit an answer within max_steps."
+            _log(f"\n=== Task Failed: {state.failure_reason} ===")
+        else:
+            _log(f"\n=== Task Finished ===")
 
         return AgentRunResult(
             task_id=task.task_id,

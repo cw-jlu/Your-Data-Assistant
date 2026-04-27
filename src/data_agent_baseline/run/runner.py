@@ -84,7 +84,7 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _write_csv(path: Path, columns: list[str], rows: list[list[Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="") as handle:
+    with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(columns)
         for row in rows:
@@ -107,6 +107,7 @@ def _run_single_task_core(
     config: AppConfig,
     model=None,
     tools: ToolRegistry | None = None,
+    task_output_dir: Path | None = None,
 ) -> dict[str, Any]:
     public_dataset = DABenchPublicDataset(config.dataset.root_path)
     task = public_dataset.get_task(task_id)
@@ -116,15 +117,15 @@ def _run_single_task_core(
         tools=tools or create_default_tool_registry(),
         config=ReActAgentConfig(max_steps=config.agent.max_steps),
     )
-    run_result = agent.run(task)
+    run_result = agent.run(task, task_output_dir=task_output_dir)
     return run_result.to_dict()
 
 
-def _run_single_task_in_subprocess(task_id: str, config: AppConfig, result_file: str) -> None:
+def _run_single_task_in_subprocess(task_id: str, config: AppConfig, result_file: str, task_output_dir: Path | None = None) -> None:
     import sys
     print(f"[SUBPROCESS] Starting task {task_id}", flush=True, file=sys.stderr)
     try:
-        result = _run_single_task_core(task_id=task_id, config=config)
+        result = _run_single_task_core(task_id=task_id, config=config, task_output_dir=task_output_dir)
         print(f"[SUBPROCESS] Task completed", flush=True, file=sys.stderr)
         payload = {"ok": True, "run_result": result}
     except BaseException as exc:  # noqa: BLE001
@@ -135,10 +136,10 @@ def _run_single_task_in_subprocess(task_id: str, config: AppConfig, result_file:
 
 
 # 运行单个任务，并根据配置支持超时自动终止
-def _run_single_task_with_timeout(*, task_id: str, config: AppConfig) -> dict[str, Any]:
+def _run_single_task_with_timeout(*, task_id: str, config: AppConfig, task_output_dir: Path | None = None) -> dict[str, Any]:
     timeout_seconds = config.run.task_timeout_seconds
     if timeout_seconds <= 0:
-        return _run_single_task_core(task_id=task_id, config=config)
+        return _run_single_task_core(task_id=task_id, config=config, task_output_dir=task_output_dir)
 
     import tempfile
     import os
@@ -151,7 +152,7 @@ def _run_single_task_with_timeout(*, task_id: str, config: AppConfig) -> dict[st
     try:
         process = multiprocessing.Process(
             target=_run_single_task_in_subprocess,
-            args=(task_id, config, result_file),
+            args=(task_id, config, result_file, task_output_dir),
         )
         process.start()
         process.join(timeout_seconds)
@@ -224,10 +225,13 @@ def run_single_task(
     tools: ToolRegistry | None = None,
 ) -> TaskRunArtifacts:
     started_at = perf_counter()
+    task_output_dir = run_output_dir / task_id
+    task_output_dir.mkdir(parents=True, exist_ok=True)
+    
     if model is None and tools is None:
-        run_result = _run_single_task_with_timeout(task_id=task_id, config=config)
+        run_result = _run_single_task_with_timeout(task_id=task_id, config=config, task_output_dir=task_output_dir)
     else:
-        run_result = _run_single_task_core(task_id=task_id, config=config, model=model, tools=tools)
+        run_result = _run_single_task_core(task_id=task_id, config=config, model=model, tools=tools, task_output_dir=task_output_dir)
     run_result["e2e_elapsed_seconds"] = round(perf_counter() - started_at, 3)
     return _write_task_outputs(task_id, run_output_dir, run_result)
 

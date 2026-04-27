@@ -49,6 +49,10 @@ def read_csv_as_dict_of_lists(csv_path: Path) -> dict[str, list[str]]:
             reader = csv.DictReader(f)
             if reader.fieldnames is None:
                 return {}
+            # 即使没有数据行，也初始化表头，避免返回空字典
+            for field in reader.fieldnames:
+                if field:
+                    data[field] = []
             for row in reader:
                 for col_name, value in row.items():
                     if col_name:

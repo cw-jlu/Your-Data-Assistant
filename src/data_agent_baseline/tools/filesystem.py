@@ -47,7 +47,7 @@ def list_context_tree(task: PublicTask, *, max_depth: int = 4) -> dict[str, obje
 
 def read_csv_preview(task: PublicTask, relative_path: str, *, max_rows: int = 20) -> dict[str, object]:
     path = resolve_context_path(task, relative_path)
-    with path.open(newline="") as handle:
+    with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.reader(handle)
         rows = list(reader)
 
@@ -71,7 +71,7 @@ def read_csv_preview(task: PublicTask, relative_path: str, *, max_rows: int = 20
 
 def read_json_preview(task: PublicTask, relative_path: str, *, max_chars: int = 4000) -> dict[str, object]:
     path = resolve_context_path(task, relative_path)
-    payload = json.loads(path.read_text())
+    payload = json.loads(path.read_text(encoding="utf-8"))
     preview = json.dumps(payload, ensure_ascii=False, indent=2)
     return {
         "path": relative_path,
@@ -82,7 +82,7 @@ def read_json_preview(task: PublicTask, relative_path: str, *, max_chars: int = 
 
 def read_doc_preview(task: PublicTask, relative_path: str, *, max_chars: int = 4000) -> dict[str, object]:
     path = resolve_context_path(task, relative_path)
-    text = path.read_text(errors="replace")
+    text = path.read_text(encoding="utf-8", errors="replace")
     return {
         "path": relative_path,
         "preview": text[:max_chars],
