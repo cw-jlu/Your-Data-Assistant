@@ -133,7 +133,7 @@ class ReActAgent:
             except Exception as exc:
                 observation = {
                     "ok": False,
-                    "error": str(exc),
+                    "error": f"Failed to parse response: {exc}. Please check your JSON format, ensure you output exactly one complete JSON block without being truncated, and try again.",
                 }
                 state.steps.append(
                     StepRecord(

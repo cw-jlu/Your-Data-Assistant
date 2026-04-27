@@ -419,7 +419,7 @@ def print_detailed_errors(results: list[dict]) -> None:
         console.print()
 
 
-def generate_markdown_report(results: list[dict], run_id: str, scores: dict) -> str:
+def generate_markdown_report(results: list[dict], run_id: str, scores: dict, agent_cfg: dict = None) -> str:
     """
     生成markdown格式的评估报告。
     """
@@ -427,6 +427,13 @@ def generate_markdown_report(results: list[dict], run_id: str, scores: dict) -> 
     md.append("# 评估报告\n")
     md.append(f"**运行ID：** {run_id}\n")
     md.append(f"**评分公式：** Score = Recall - λ·(Extra/Predicted), λ = {scores['lambda_param']}\n\n")
+    
+    if agent_cfg:
+        md.append("## ⚙️ 运行参数\n")
+        md.append(f"- **Model**: {agent_cfg.get('model', 'N/A')}\n")
+        md.append(f"- **Max Steps**: {agent_cfg.get('max_steps', 'N/A')}\n")
+        md.append(f"- **Temperature**: {agent_cfg.get('temperature', 'N/A')}\n")
+        md.append(f"- **Max Tokens**: {agent_cfg.get('max_tokens', 'N/A')}\n\n")
     
     # 统计信息
     md.append("## 📊 评分统计\n")
@@ -510,17 +517,17 @@ def generate_markdown_report(results: list[dict], run_id: str, scores: dict) -> 
         
         md.append("\n")
     
-    # 完全失败的任务
+    # 完全错误的任务
     if failed_tasks:
-        md.append(f"### ❌ 失败的任务 ({len(failed_tasks)})\n\n")
+        md.append(f"### ❌ 完全错误的任务 ({len(failed_tasks)})\n\n")
         for result in failed_tasks:
             task_id = result["task_id"]
             md.append(f"- **{task_id}**\n")
         md.append("\n")
     
-    # 错误的任务
+    # 执行失败的任务
     if error_tasks:
-        md.append(f"### 🚫 错误的任务 ({len(error_tasks)})\n\n")
+        md.append(f"### 🚫 执行失败的任务 ({len(error_tasks)})\n\n")
         for result in error_tasks:
             md.append(f"- **{result['task_id']}**: {result['error']}\n")
         md.append("\n")
@@ -528,7 +535,7 @@ def generate_markdown_report(results: list[dict], run_id: str, scores: dict) -> 
     return "".join(md)
 
 
-def save_markdown_report(results: list[dict], run_id: str, scores: dict, output_path: Optional[Path] = None) -> Path:
+def save_markdown_report(results: list[dict], run_id: str, scores: dict, output_path: Optional[Path] = None, agent_cfg: dict = None) -> Path:
     """
     保存markdown报告到文件。
     默认保存到 artifacts/runs/{run_id}/report.md
@@ -538,7 +545,7 @@ def save_markdown_report(results: list[dict], run_id: str, scores: dict, output_
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    md_content = generate_markdown_report(results, run_id, scores)
+    md_content = generate_markdown_report(results, run_id, scores, agent_cfg=agent_cfg)
     
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(md_content)
@@ -602,6 +609,24 @@ def main():
     console.print(f"[bold blue]Evaluating run: {args.run_id}[/bold blue]")
     console.print(f"[dim]Global LAMBDA_PARAM: {LAMBDA_PARAM}[/dim]\n")
 
+    agent_cfg = None
+    summary_path = ARTIFACTS_ROOT / args.run_id / "summary.json"
+    if summary_path.exists():
+        try:
+            with open(summary_path, "r", encoding="utf-8") as f:
+                summary_data = json.load(f)
+            if "config" in summary_data:
+                agent_cfg = summary_data["config"].get("agent", {})
+                params_text = (
+                    f"Model: {agent_cfg.get('model', 'N/A')}\n"
+                    f"Max Steps: {agent_cfg.get('max_steps', 'N/A')}\n"
+                    f"Temperature: {agent_cfg.get('temperature', 'N/A')}\n"
+                    f"Max Tokens: {agent_cfg.get('max_tokens', 'N/A')}"
+                )
+                console.print(Panel(params_text, title="Run Parameters", border_style="cyan"))
+        except Exception as e:
+            console.print(f"[dim]Could not load run parameters from summary.json: {e}[/dim]")
+
     results = evaluate_run(args.run_id)
 
     if not results:
@@ -618,7 +643,7 @@ def main():
     # 保存markdown报告
     if args.save_md or args.md_path:
         md_path = Path(args.md_path) if args.md_path else None
-        save_markdown_report(results, args.run_id, scores, md_path)
+        save_markdown_report(results, args.run_id, scores, md_path, agent_cfg=agent_cfg)
 
 
 if __name__ == "__main__":

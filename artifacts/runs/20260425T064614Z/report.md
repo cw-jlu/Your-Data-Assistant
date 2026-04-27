@@ -40,7 +40,7 @@
 - **task_408** (Score=1.0000): 1列完全匹配, Recall=1.00, Penalty=0.0000
 - **task_415** (Score=1.0000): 2列完全匹配, Recall=1.00, Penalty=0.0000
 
-### ❌ 失败的任务 (11)
+### ❌ 完全错误的任务 (11)
 
 - **task_80**
 - **task_86**
@@ -54,7 +54,7 @@
 - **task_344**
 - **task_420**
 
-### 🚫 错误的任务 (15)
+### 🚫 执行失败的任务 (15)
 
 - **task_11**: Prediction CSV not found: /home/gubin/Oralagent/kdd/starter-kit/artifacts/runs/20260425T064614Z/task_11/prediction.csv
 - **task_22**: Prediction CSV not found: /home/gubin/Oralagent/kdd/starter-kit/artifacts/runs/20260425T064614Z/task_22/prediction.csv
