@@ -151,6 +151,8 @@ def create_default_tool_registry() -> ToolRegistry:
             description=(
                 "Execute arbitrary Python code with the task context directory as the "
                 "working directory. The tool returns the code's captured stdout as `output`. "
+                "PERFORMANCE TIP: For large files (over 1MB), use `pandas` for vectorized operations "
+                "instead of `csv.DictReader` to avoid timeouts. "
                 f"The execution timeout is fixed at {EXECUTE_PYTHON_TIMEOUT_SECONDS} seconds."
             ),
             input_schema={

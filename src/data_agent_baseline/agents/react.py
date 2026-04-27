@@ -38,14 +38,9 @@ def _strip_json_fence(raw_response: str) -> str:
     return text
 
 
-# 将文本解析为单个 JSON 对象
-def _load_single_json_object(text: str) -> dict[str, object]:
-    payload, end = json.JSONDecoder().raw_decode(text)
-    remainder = text[end:].strip()
-    if remainder:
-        cleaned_remainder = re.sub(r"(?:\\[nrt])+", "", remainder).strip()
-        if cleaned_remainder:
-            raise ValueError("Model response must contain only one JSON object.")
+# 将文本解析为 JSON 对象
+def _load_json_object(text: str) -> dict[str, object]:
+    payload = json.loads(text)
     if not isinstance(payload, dict):
         raise ValueError("Model response must be a JSON object.")
     return payload
@@ -54,7 +49,7 @@ def _load_single_json_object(text: str) -> dict[str, object]:
 # 解析模型输出的一步，提取 Thought、Action 和 Action Input
 def parse_model_step(raw_response: str) -> ModelStep:
     normalized = _strip_json_fence(raw_response)
-    payload = _load_single_json_object(normalized)
+    payload = _load_json_object(normalized)
 
     thought = payload.get("thought", "")
     action = payload.get("action")

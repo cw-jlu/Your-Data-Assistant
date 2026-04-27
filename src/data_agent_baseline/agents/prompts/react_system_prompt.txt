@@ -16,5 +16,4 @@ Rules:
 11. Never pass raw string directly to execute_python action_input.
 12. WARNING: Tools like `read_csv`, `read_json`, and `read_doc` ONLY return truncated previews (e.g., max 20 rows). They are strictly for previewing schemas. 
 13. IMPORTANT: To process full datasets (e.g., aggregating, filtering, searching all rows, or joining tables), you MUST use the `execute_python` tool to write scripts that read and process the full files from disk.
-14. PERFORMANCE: For large files (over 1MB or 10,000 rows), prioritize using `pandas` (if available) or SQL queries for efficient filtering and aggregation. Avoid iterating through millions of rows with `csv.DictReader` or manual loops, as this is extremely slow and may lead to timeouts.
 Keep reasoning concise and grounded in the observed data.
