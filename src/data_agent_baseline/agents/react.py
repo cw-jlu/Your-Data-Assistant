@@ -23,7 +23,7 @@ from data_agent_baseline.tools.registry import ToolRegistry
 @dataclass(frozen=True, slots=True)
 class ReActAgentConfig:
     # 最大步数，防止 Agent 进入无限循环
-    max_steps: int = 50
+    max_steps: int = 35
 
 
 # 清理模型输出中的 Markdown 代码块（JSON 围栏）
@@ -112,12 +112,16 @@ class ReActAgent:
         _log(f"=== Starting Task {task.task_id} ===")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
+        consecutive_errors = 0
+        action_history: list[tuple[str, str]] = []
+
         for step_index in range(1, self.config.max_steps + 1):
             _log(f"\n--- Step {step_index} ---")
             raw_response = self.model.complete(self._build_messages(task, state))
             _log(f"Model Response:\n{raw_response}")
             try:
                 model_step = parse_model_step(raw_response)
+                # 解析成功，但还没看工具执行结果，先不重置错误计数
             except Exception as exc:
                 observation = {
                     "ok": False,
@@ -135,7 +139,20 @@ class ReActAgent:
                         ok=False,
                     )
                 )
+                consecutive_errors += 1
+                if consecutive_errors >= 5:
+                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive parse errors."
+                    _log(f"Circuit breaker triggered: {state.failure_reason}")
+                    break
                 continue
+
+            # 检测重复行为
+            current_action = (model_step.action, json.dumps(model_step.action_input, sort_keys=True))
+            action_history.append(current_action)
+            if len(action_history) >= 3 and action_history[-1] == action_history[-2] == action_history[-3]:
+                state.failure_reason = f"Agent is stuck in a loop (repeated action: {model_step.action})."
+                _log(f"Loop detection triggered: {state.failure_reason}")
+                break
 
             try:
                 tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
@@ -145,6 +162,12 @@ class ReActAgent:
                     "content": tool_result.content,
                 }
                 _log(f"Tool Result ({model_step.action}):\n{json.dumps(observation, ensure_ascii=False, indent=2)}")
+                
+                if tool_result.ok:
+                    consecutive_errors = 0 # 成功执行工具，重置错误计数
+                else:
+                    consecutive_errors += 1
+                
                 step_record = StepRecord(
                     step_index=step_index,
                     thought=model_step.thought,
@@ -155,6 +178,12 @@ class ReActAgent:
                     ok=tool_result.ok,
                 )
                 state.steps.append(step_record)
+
+                if consecutive_errors >= 5:
+                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive tool/parse errors."
+                    _log(f"Circuit breaker triggered: {state.failure_reason}")
+                    break
+
                 if tool_result.is_terminal:
                     _log("Terminal tool called. Ending loop.")
                     state.answer = tool_result.answer
@@ -176,9 +205,16 @@ class ReActAgent:
                         ok=False,
                     )
                 )
+                consecutive_errors += 1
+                if consecutive_errors >= 5:
+                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive tool errors."
+                    _log(f"Circuit breaker triggered: {state.failure_reason}")
+                    break
 
         if state.answer is None and state.failure_reason is None:
             state.failure_reason = "Agent did not submit an answer within max_steps."
+            _log(f"\n=== Task Failed: {state.failure_reason} ===")
+        elif state.failure_reason:
             _log(f"\n=== Task Failed: {state.failure_reason} ===")
         else:
             _log(f"\n=== Task Finished ===")
