@@ -36,11 +36,13 @@ class OpenAIModelAdapter:
         api_base: str,
         api_key: str,
         temperature: float,
+        max_tokens: int | None = None,
     ) -> None:
         self.model = model
         self.api_base = api_base.rstrip("/")
         self.api_key = api_key
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def complete(self, messages: list[ModelMessage]) -> str:
         if not self.api_key:
@@ -52,10 +54,15 @@ class OpenAIModelAdapter:
         )
 
         try:
+            kwargs = {}
+            if self.max_tokens is not None:
+                kwargs["max_tokens"] = self.max_tokens
+                
             response = client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": message.role, "content": message.content} for message in messages],
-                temperature=self.temperature
+                temperature=self.temperature,
+                **kwargs
             )
         except APIError as exc:
             raise RuntimeError(f"Model request failed: {exc}") from exc

@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import os
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -26,11 +27,12 @@ class DatasetConfig:
 
 @dataclass(frozen=True, slots=True)
 class AgentConfig:
-    model: str = "gpt-4.1-mini"
+    model: str = "qwen3.5-35b-a3b"
     api_base: str = "https://api.openai.com/v1"
     api_key: str = ""
     max_steps: int = 16
     temperature: float = 0.0
+    max_tokens: int | None = 8192
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,11 +73,12 @@ def load_app_config(config_path: Path) -> AppConfig:
         root_path=_path_value(dataset_payload.get("root_path"), dataset_defaults.root_path),
     )
     agent_config = AgentConfig(
-        model=str(agent_payload.get("model", agent_defaults.model)),
-        api_base=str(agent_payload.get("api_base", agent_defaults.api_base)),
-        api_key=str(agent_payload.get("api_key", agent_defaults.api_key)),
+        model=os.environ.get("MODEL_NAME") or str(agent_payload.get("model", agent_defaults.model)),
+        api_base=os.environ.get("MODEL_API_URL") or str(agent_payload.get("api_base", agent_defaults.api_base)),
+        api_key=os.environ.get("MODEL_API_KEY") or str(agent_payload.get("api_key", agent_defaults.api_key)),
         max_steps=int(agent_payload.get("max_steps", agent_defaults.max_steps)),
         temperature=float(agent_payload.get("temperature", agent_defaults.temperature)),
+        max_tokens=agent_payload.get("max_tokens", agent_defaults.max_tokens),
     )
     raw_run_id = run_payload.get("run_id")
     run_id = run_defaults.run_id
