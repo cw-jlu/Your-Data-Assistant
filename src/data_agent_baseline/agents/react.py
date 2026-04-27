@@ -24,6 +24,12 @@ from data_agent_baseline.tools.registry import ToolRegistry
 class ReActAgentConfig:
     # 最大步数，防止 Agent 进入无限循环
     max_steps: int = 35
+    # 连续报错达到多少次时进行反思提醒
+    error_reflection_threshold: int = 3
+    # 连续报错达到多少次时停止任务（熔断）
+    max_consecutive_errors: int = 6
+    # 连续执行相同操作多少次时判定为死循环
+    max_repeated_actions: int = 3
 
 
 # 清理模型输出中的 Markdown 代码块（JSON 围栏）
@@ -117,17 +123,27 @@ class ReActAgent:
 
         for step_index in range(1, self.config.max_steps + 1):
             _log(f"\n--- Step {step_index} ---")
+            
+            # 准备基础报错信息
+            reflection_hint = ""
+            if consecutive_errors >= self.config.error_reflection_threshold:
+                reflection_hint = (
+                    "\n\n[SYSTEM WARNING] You have encountered multiple consecutive errors. "
+                    "Please carefully analyze the error messages above and your previous steps. "
+                    "Ensure your output strictly follows the JSON format and tool specifications. "
+                    "Rethink your current approach and correct any recurring mistakes before proceeding."
+                )
+
             raw_response = self.model.complete(self._build_messages(task, state))
             _log(f"Model Response:\n{raw_response}")
             try:
                 model_step = parse_model_step(raw_response)
-                # 解析成功，但还没看工具执行结果，先不重置错误计数
             except Exception as exc:
                 observation = {
                     "ok": False,
-                    "error": f"Failed to parse response: {exc}. Please check your JSON format, ensure you output exactly one complete JSON block without being truncated, and try again.",
+                    "error": f"Failed to parse response: {exc}. Please check your JSON format, ensure you output exactly one complete JSON block without being truncated, and try again.{reflection_hint}",
                 }
-                _log(f"Parse Error:\n{observation['error']}")
+                _log(f"Parse Error (Consecutive: {consecutive_errors + 1}):\n{observation['error']}")
                 state.steps.append(
                     StepRecord(
                         step_index=step_index,
@@ -140,8 +156,8 @@ class ReActAgent:
                     )
                 )
                 consecutive_errors += 1
-                if consecutive_errors >= 5:
-                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive parse errors."
+                if consecutive_errors >= self.config.max_consecutive_errors:
+                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive parse errors despite reflection warnings."
                     _log(f"Circuit breaker triggered: {state.failure_reason}")
                     break
                 continue
@@ -149,24 +165,33 @@ class ReActAgent:
             # 检测重复行为
             current_action = (model_step.action, json.dumps(model_step.action_input, sort_keys=True))
             action_history.append(current_action)
-            if len(action_history) >= 3 and action_history[-1] == action_history[-2] == action_history[-3]:
-                state.failure_reason = f"Agent is stuck in a loop (repeated action: {model_step.action})."
-                _log(f"Loop detection triggered: {state.failure_reason}")
-                break
+            if len(action_history) >= self.config.max_repeated_actions:
+                last_n = action_history[-self.config.max_repeated_actions:]
+                if all(a == last_n[0] for a in last_n):
+                    state.failure_reason = f"Agent is stuck in a loop (repeated action: {model_step.action} 3 times)."
+                    _log(f"Loop detection triggered: {state.failure_reason}")
+                    break
 
             try:
                 tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
+                
+                # 如果报错，加入反思提醒
+                obs_error = ""
+                if not tool_result.ok:
+                    consecutive_errors += 1
+                    obs_error = reflection_hint
+                else:
+                    consecutive_errors = 0 # 只要有一次成功，就重置连续错误计数
+                
                 observation = {
                     "ok": tool_result.ok,
                     "tool": model_step.action,
                     "content": tool_result.content,
                 }
+                if not tool_result.ok:
+                    observation["error_hint"] = obs_error # 注入反思消息
+
                 _log(f"Tool Result ({model_step.action}):\n{json.dumps(observation, ensure_ascii=False, indent=2)}")
-                
-                if tool_result.ok:
-                    consecutive_errors = 0 # 成功执行工具，重置错误计数
-                else:
-                    consecutive_errors += 1
                 
                 step_record = StepRecord(
                     step_index=step_index,
@@ -179,7 +204,7 @@ class ReActAgent:
                 )
                 state.steps.append(step_record)
 
-                if consecutive_errors >= 5:
+                if consecutive_errors >= self.config.max_consecutive_errors:
                     state.failure_reason = f"Agent failed with {consecutive_errors} consecutive tool/parse errors."
                     _log(f"Circuit breaker triggered: {state.failure_reason}")
                     break
@@ -189,11 +214,12 @@ class ReActAgent:
                     state.answer = tool_result.answer
                     break
             except Exception as exc:
+                consecutive_errors += 1
                 observation = {
                     "ok": False,
-                    "error": f"Tool execution failed: {exc}. Please check your action_input and try again.",
+                    "error": f"Tool execution failed: {exc}. Please check your action_input and try again.{reflection_hint}",
                 }
-                _log(f"Tool Error ({model_step.action}):\n{observation['error']}")
+                _log(f"Tool Error ({model_step.action}, Consecutive: {consecutive_errors}):\n{observation['error']}")
                 state.steps.append(
                     StepRecord(
                         step_index=step_index,
@@ -205,9 +231,8 @@ class ReActAgent:
                         ok=False,
                     )
                 )
-                consecutive_errors += 1
-                if consecutive_errors >= 5:
-                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive tool errors."
+                if consecutive_errors >= self.config.max_consecutive_errors:
+                    state.failure_reason = f"Agent failed with {consecutive_errors} consecutive tool execution errors."
                     _log(f"Circuit breaker triggered: {state.failure_reason}")
                     break
 
