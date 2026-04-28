@@ -63,10 +63,11 @@ def main():
         # 2. 同步依赖 (确保 V2 模块可用)
         run_command("uv sync")
         
-        # 3. 运行测试 (冒烟测试：8个难题)
-        # 如果你想跑全量，请改为 uv run dabench run-benchmark --config configs/react_baseline.local.yaml
-        print(f"Running Benchmark on {branch}...")
-        run_command("uv run python run_failed.py")
+        # 3. 运行全量测试 (Benchmark)
+        print(f"Running Full Benchmark on {branch}...")
+        # 使用 dabench 运行全量任务，配置指向 local.yaml
+        benchmark_cmd = "uv run dabench run-benchmark --config configs/react_baseline.local.yaml"
+        run_command(benchmark_cmd)
         
         # 4. 获取 Run ID 并评估
         run_id = get_latest_run_id()
