@@ -1,146 +1,134 @@
 """
-GraphRAG 导航器。
-利用 LLM 对非结构化文档进行 Entity-Relation 三元组抽取，
-结合 DB/CSV Schema 构建统一语义图。
+GraphRAG 导航器 (v2)。
+升级内容：
+1. 改进的 LLM 抽取 Prompt（归一化关系类型 + 置信度）
+2. 实体去重（基于 lowercase 合并）
+3. 按置信度排序，只注入高质量三元组
 """
-import sqlite3
-import csv
 import json
 import re
 from pathlib import Path
-from collections import defaultdict
 
 
-def _extract_schema_nodes(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
-    """提取所有结构化数据的 Schema 节点。返回 (lines, sources)。"""
-    lines = []
-    sources: dict[str, list[str]] = {}
+STANDARDIZED_RELATIONS = [
+    "HAS_PROPERTY", "CONTAINS", "RELATES_TO", "IS_TYPE_OF",
+    "HAS_VALUE", "EQUALS", "GREATER_THAN", "LESS_THAN",
+    "BELONGS_TO", "DEFINED_AS", "MEASURED_BY", "CLASSIFIED_AS",
+]
 
-    for db_path in sorted(context_dir.rglob("*.db")):
-        rel = db_path.relative_to(context_dir)
-        try:
-            conn = sqlite3.connect(str(db_path))
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            for (table_name,) in cursor.fetchall():
-                cursor.execute(f"PRAGMA table_info('{table_name}')")
-                cols = cursor.fetchall()
-                col_names = [c[1] for c in cols]
-                col_desc = [f"{c[1]}({c[2]})" for c in cols]
-                key = f"{rel}::{table_name}"
-                sources[key] = col_names
-                lines.append(f"[DB] {rel} → '{table_name}': {', '.join(col_desc)}")
-            conn.close()
-        except Exception as e:
-            lines.append(f"[DB] {rel} (Error: {e})")
+EXTRACTION_PROMPT = """Extract entities and relationships from the text below.
 
-    for csv_path in sorted(context_dir.rglob("*.csv")):
-        rel = csv_path.relative_to(context_dir)
-        try:
-            with csv_path.open("r", encoding="utf-8", errors="replace") as f:
-                header = next(csv.reader(f), None)
-                if header:
-                    sources[str(rel)] = header
-                    lines.append(f"[CSV] {rel}: {', '.join(header)}")
-        except Exception as e:
-            lines.append(f"[CSV] {rel} (Error: {e})")
+Rules:
+1. Normalize entity names (e.g., "F1" → "Formula 1", abbreviations → full form)
+2. Use standardized relationship types from this list when possible:
+   {relations}
+3. Include a confidence score (0.0-1.0) for each triplet
+4. Deduplicate: merge synonyms into canonical forms
+5. Focus on data-relevant facts: definitions, thresholds, categories, constraints
 
-    for json_path in sorted(context_dir.rglob("*.json")):
-        rel = json_path.relative_to(context_dir)
-        try:
-            with json_path.open("r", encoding="utf-8", errors="replace") as f:
-                data = json.load(f)
-                keys = []
-                if isinstance(data, dict):
-                    keys = list(data.keys())
-                elif isinstance(data, list) and data and isinstance(data[0], dict):
-                    keys = list(data[0].keys())
-                if keys:
-                    sources[str(rel)] = keys
-                    lines.append(f"[JSON] {rel}: {', '.join(keys)}")
-        except Exception as e:
-            lines.append(f"[JSON] {rel} (Error: {e})")
+Output ONLY a JSON array: [["Subject", "Predicate", "Object", confidence], ...]
+Max 20 triplets. No extra text.
 
-    return lines, sources
+Text from {source}:
+{text}"""
 
 
-def _find_join_hints(sources: dict[str, list[str]]) -> list[str]:
-    """发现跨源同名字段。"""
-    col_to_srcs: dict[str, list[str]] = defaultdict(list)
-    for src, cols in sources.items():
-        for col in cols:
-            col_to_srcs[col.lower().strip()].append(src)
-    hints = []
-    for col, srcs in col_to_srcs.items():
-        if len(srcs) > 1:
-            hints.append(f"  '{col}' links: {' <--> '.join(srcs)}")
-    return hints
-
-
-def _extract_triplets_with_llm(model, context_dir: Path) -> list[tuple[str, str, str]]:
+def _extract_triplets_with_llm(
+    model, context_dir: Path, min_confidence: float = 0.5
+) -> list[tuple[str, str, str, float]]:
     """
-    调用 LLM 从 MD/TXT 文档中提取 (Subject, Predicate, Object) 三元组。
+    调用 LLM 从非 knowledge.md 的 MD/TXT 文件中抽取高质量三元组。
     """
     from data_agent_baseline.agents.model import ModelMessage
 
-    triplets = []
+    raw_triplets: list[tuple[str, str, str, float]] = []
     doc_files = list(context_dir.rglob("*.md")) + list(context_dir.rglob("*.txt"))
 
     for doc_path in doc_files:
+        if doc_path.name.lower() == "knowledge.md":
+            continue
         try:
             text = doc_path.read_text(encoding="utf-8", errors="replace")[:4000]
             if len(text.strip()) < 50:
                 continue
 
             rel = doc_path.relative_to(context_dir)
-            prompt = (
-                "Extract key entities and their relationships from the following text. "
-                "Focus on definitions, classification, numerical thresholds, and constraints. "
-                "Output ONLY a JSON list of triplets: [[\"Subject\", \"Predicate\", \"Object\"], ...]. "
-                "Keep it concise (max 20 triplets). No extra text.\n\n"
-                f"Text from {rel}:\n{text}"
+            prompt = EXTRACTION_PROMPT.format(
+                relations=", ".join(STANDARDIZED_RELATIONS),
+                source=str(rel),
+                text=text,
             )
 
             response = model.complete([ModelMessage(role="user", content=prompt)])
+
+            # 解析 JSON 数组
             json_match = re.search(r"\[\s*\[.*?\]\s*\]", response, re.DOTALL)
             if json_match:
                 parsed = json.loads(json_match.group(0))
                 for t in parsed:
-                    if isinstance(t, list) and len(t) == 3:
-                        triplets.append((str(t[0]), str(t[1]), str(t[2])))
+                    if isinstance(t, list) and len(t) >= 3:
+                        conf = float(t[3]) if len(t) >= 4 else 0.7
+                        raw_triplets.append((str(t[0]), str(t[1]), str(t[2]), conf))
         except Exception:
             pass
 
-    return triplets
+    return raw_triplets
 
 
-def build_graphrag_roadmap(context_dir: Path, model=None) -> str:
+def _deduplicate_entities(
+    triplets: list[tuple[str, str, str, float]]
+) -> list[tuple[str, str, str, float]]:
     """
-    构建 GraphRAG 路线图：
-    1. 结构化 Schema 扫描
-    2. 跨源 JOIN 发现
-    3. LLM 文档三元组提取（如果模型可用）
+    基于 lowercase 匹配进行实体合并。
+    保留首次出现的大小写形式作为 canonical。
     """
-    lines = ["=== GRAPHRAG KNOWLEDGE GRAPH ==="]
+    canonical: dict[str, str] = {}
+    for s, p, o, conf in triplets:
+        s_key = s.lower().strip()
+        o_key = o.lower().strip()
+        if s_key not in canonical:
+            canonical[s_key] = s.strip()
+        if o_key not in canonical:
+            canonical[o_key] = o.strip()
 
-    # 1. Schema 节点
-    schema_lines, sources = _extract_schema_nodes(context_dir)
-    if schema_lines:
-        lines.append("\n[SCHEMA NODES]")
-        lines.extend(schema_lines)
+    deduped = []
+    seen = set()
+    for s, p, o, conf in triplets:
+        cs = canonical[s.lower().strip()]
+        co = canonical[o.lower().strip()]
+        key = (cs.lower(), p.lower(), co.lower())
+        if key not in seen:
+            seen.add(key)
+            deduped.append((cs, p, co, conf))
 
-    # 2. JOIN 提示
-    join_hints = _find_join_hints(sources)
-    if join_hints:
-        lines.append("\n[JOIN HINTS]")
-        lines.extend(join_hints)
+    return deduped
 
-    # 3. LLM 三元组提取
-    if model:
-        triplets = _extract_triplets_with_llm(model, context_dir)
-        if triplets:
-            lines.append(f"\n[SEMANTIC TRIPLETS] ({len(triplets)} facts extracted)")
-            for s, p, o in triplets[:30]:
-                lines.append(f"  ({s}) --[{p}]--> ({o})")
+
+def get_semantic_triplets(
+    model, context_dir: Path,
+    min_confidence: float = 0.5,
+    max_triplets: int = 25,
+) -> str:
+    """
+    提取、去重、排序三元组，返回格式化字符串。
+    """
+    raw = _extract_triplets_with_llm(model, context_dir, min_confidence)
+    if not raw:
+        return ""
+
+    # 去重
+    deduped = _deduplicate_entities(raw)
+
+    # 按置信度排序
+    deduped.sort(key=lambda x: x[3], reverse=True)
+
+    # 过滤低置信度 + 限制数量
+    filtered = [t for t in deduped if t[3] >= min_confidence][:max_triplets]
+    if not filtered:
+        return ""
+
+    lines = [f"\n=== SEMANTIC TRIPLETS ({len(filtered)} high-confidence facts) ==="]
+    for s, p, o, conf in filtered:
+        lines.append(f"  ({s}) --[{p}]--> ({o})  [conf: {conf:.1f}]")
 
     return "\n".join(lines)

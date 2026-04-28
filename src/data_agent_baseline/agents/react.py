@@ -28,6 +28,8 @@ class ReActAgentConfig:
     error_reflection_threshold: int = 3
     # 连续报错达到多少次时停止任务（熔断）
     max_consecutive_errors: int = 6
+    # RAG 检索返回的最大分块数
+    rag_top_k: int = 5
     # 连续执行相同操作多少次时判定为死循环
     max_repeated_actions: int = 3
 
@@ -118,11 +120,11 @@ class ReActAgent:
 
         _log(f"=== Starting Task {task.task_id} ===")
 
-        # 实验变量：GraphRAG 语义图谱构建
-        from data_agent_baseline.agents.graphrag import build_graphrag_roadmap
-        data_roadmap = build_graphrag_roadmap(task.context_dir, model=self.model)
+        # 实验变量：GraphRAG v2 (置信度 + 实体去重)
+        from data_agent_baseline.agents.graphrag import get_semantic_triplets
+        data_roadmap = get_semantic_triplets(self.model, task.context_dir)
         if data_roadmap:
-            _log("GraphRAG: Knowledge graph with triplets injected.")
+            _log("GraphRAG v2: Deduped triplets with confidence injected.")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
