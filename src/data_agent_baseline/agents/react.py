@@ -91,10 +91,11 @@ class ReActAgent:
         self.system_prompt = system_prompt or REACT_SYSTEM_PROMPT
 
     # 构建发送给模型的对话消息列表（包含系统提示词、任务描述和历史步骤）
-    def _build_messages(self, task: PublicTask, state: AgentRuntimeState) -> list[ModelMessage]:
+    def _build_messages(self, task: PublicTask, state: AgentRuntimeState, data_roadmap: str | None = None) -> list[ModelMessage]:
         system_content = build_system_prompt(
             self.tools.describe_for_prompt(),
             system_prompt=self.system_prompt,
+            data_roadmap=data_roadmap,
         )
         messages = [ModelMessage(role="system", content=system_content)]
         messages.append(ModelMessage(role="user", content=build_task_prompt(task)))
@@ -116,6 +117,27 @@ class ReActAgent:
                     f.write(msg + "\n")
 
         _log(f"=== Starting Task {task.task_id} ===")
+
+        # --- 组合导航器 A: KG + PageRAG ---
+        from data_agent_baseline.agents.db_navigator import get_data_roadmap
+        from data_agent_baseline.agents.pagerag import PageRAGNavigator
+        
+        # 1. 获取全局结构图谱 (KG)
+        kg_roadmap = get_data_roadmap(task.context_dir)
+        
+        # 2. 获取文档目录与相关页 (PageRAG)
+        pagerag = PageRAGNavigator(task.context_dir)
+        doc_catalog = pagerag.get_catalog()
+        retrieved_pages = pagerag.retrieve(task.question, top_k=3)
+        
+        # 合并路线图
+        data_roadmap = kg_roadmap
+        if doc_catalog:
+            data_roadmap += "\n" + doc_catalog
+        if retrieved_pages:
+            data_roadmap += "\n" + retrieved_pages
+            
+        _log("Hybrid Navigator (KG + PageRAG) initialized and injected.")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
@@ -134,7 +156,7 @@ class ReActAgent:
                     "Rethink your current approach and correct any recurring mistakes before proceeding."
                 )
 
-            raw_response = self.model.complete(self._build_messages(task, state))
+            raw_response = self.model.complete(self._build_messages(task, state, data_roadmap=data_roadmap))
             _log(f"Model Response:\n{raw_response}")
             try:
                 model_step = parse_model_step(raw_response)
