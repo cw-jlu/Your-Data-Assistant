@@ -28,6 +28,8 @@ class ReActAgentConfig:
     error_reflection_threshold: int = 3
     # 连续报错达到多少次时停止任务（熔断）
     max_consecutive_errors: int = 6
+    # RAG 检索返回的最大分块数
+    rag_top_k: int = 5
     # 连续执行相同操作多少次时判定为死循环
     max_repeated_actions: int = 3
 
