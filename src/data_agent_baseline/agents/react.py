@@ -28,6 +28,8 @@ class ReActAgentConfig:
     error_reflection_threshold: int = 3
     # 连续报错达到多少次时停止任务（熔断）
     max_consecutive_errors: int = 6
+    # RAG 检索返回的最大分块数
+    rag_top_k: int = 5
     # 连续执行相同操作多少次时判定为死循环
     max_repeated_actions: int = 3
 
@@ -118,15 +120,17 @@ class ReActAgent:
 
         _log(f"=== Starting Task {task.task_id} ===")
 
-        # 实验变量：PageRAG 文档检索
+        # 实验变量：PageRAG v2 (BM25 + 双层切分)
         from data_agent_baseline.agents.pagerag import PageRAGNavigator
-        pagerag = PageRAGNavigator(task.context_dir)
-        doc_index = pagerag.get_initial_context()
-        retrieved_pages = pagerag.retrieve(task.question, top_k=3)
+        pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k)
+        doc_catalog = pagerag.get_catalog()
+        retrieved_pages = pagerag.retrieve(task.question)
         data_roadmap = ""
-        if doc_index:
-            data_roadmap = doc_index + "\n\n" + retrieved_pages
-            _log("PageRAG: Document index + relevant pages injected.")
+        if doc_catalog:
+            data_roadmap = doc_catalog
+            if retrieved_pages:
+                data_roadmap += "\n" + retrieved_pages
+            _log(f"PageRAG v2: BM25 index + top-{self.config.rag_top_k} pages injected.")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0

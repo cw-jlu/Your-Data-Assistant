@@ -115,7 +115,7 @@ def _run_single_task_core(
     agent = ReActAgent(
         model=model or build_model_adapter(config),
         tools=tools or create_default_tool_registry(),
-        config=ReActAgentConfig(max_steps=config.agent.max_steps),
+        config=ReActAgentConfig(max_steps=config.agent.max_steps, rag_top_k=config.agent.rag_top_k),
     )
     run_result = agent.run(task, task_output_dir=task_output_dir)
     return run_result.to_dict()
