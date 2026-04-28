@@ -23,10 +23,12 @@ REACT_SYSTEM_PROMPT = _load_prompt("react_system_prompt.txt")
 RESPONSE_EXAMPLES = _load_prompt("response_examples.txt")
 
 
-def build_system_prompt(tool_descriptions: str, system_prompt: str | None = None) -> str:
+def build_system_prompt(tool_descriptions: str, system_prompt: str | None = None, data_roadmap: str | None = None) -> str:
     base_prompt = system_prompt or REACT_SYSTEM_PROMPT
+    roadmap_section = f"\n\n{data_roadmap}\n" if data_roadmap else ""
     return (
-        f"{base_prompt}\n\n"
+        f"{base_prompt}\n"
+        f"{roadmap_section}\n"
         "Available tools:\n"
         f"{tool_descriptions}\n\n"
         f"{RESPONSE_EXAMPLES}\n\n"
