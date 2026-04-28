@@ -91,10 +91,11 @@ class ReActAgent:
         self.system_prompt = system_prompt or REACT_SYSTEM_PROMPT
 
     # 构建发送给模型的对话消息列表（包含系统提示词、任务描述和历史步骤）
-    def _build_messages(self, task: PublicTask, state: AgentRuntimeState) -> list[ModelMessage]:
+    def _build_messages(self, task: PublicTask, state: AgentRuntimeState, data_roadmap: str | None = None) -> list[ModelMessage]:
         system_content = build_system_prompt(
             self.tools.describe_for_prompt(),
             system_prompt=self.system_prompt,
+            data_roadmap=data_roadmap,
         )
         messages = [ModelMessage(role="system", content=system_content)]
         messages.append(ModelMessage(role="user", content=build_task_prompt(task)))
@@ -117,6 +118,12 @@ class ReActAgent:
 
         _log(f"=== Starting Task {task.task_id} ===")
         
+        # 实验变量：注入全量数据路线图 (DB, CSV, JSON)
+        from data_agent_baseline.agents.db_navigator import get_data_roadmap
+        data_roadmap = get_data_roadmap(task.context_dir)
+        if data_roadmap:
+            _log("Data Roadmap (DB/CSV/JSON) injected into System Prompt.")
+
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
         action_history: list[tuple[str, str]] = []
@@ -134,7 +141,7 @@ class ReActAgent:
                     "Rethink your current approach and correct any recurring mistakes before proceeding."
                 )
 
-            raw_response = self.model.complete(self._build_messages(task, state))
+            raw_response = self.model.complete(self._build_messages(task, state, data_roadmap=data_roadmap))
             _log(f"Model Response:\n{raw_response}")
             try:
                 model_step = parse_model_step(raw_response)

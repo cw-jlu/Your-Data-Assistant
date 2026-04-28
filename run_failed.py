@@ -32,7 +32,9 @@ def run_specific_tasks():
         )
     )
     
-    effective_run_id, run_output_dir = create_run_output_dir(app_config.run.output_dir, run_id="debug_failed_tasks")
+    import time
+    run_id = f"debug_failed_{int(time.time())}"
+    effective_run_id, run_output_dir = create_run_output_dir(app_config.run.output_dir, run_id=run_id)
     
     tasks_to_run = ["task_11", "task_19", "task_24", "task_25", "task_26", "task_27", "task_38", "task_214"]
     

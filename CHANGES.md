@@ -37,5 +37,8 @@
 
 ## 4. 后续开发建议
 - **并发性能**：将 `max_workers` 设为 `4` 或 `8` 可充分利用 CPU 核心。新的临时文件方案是并发安全的。
-- **本地调试**：可以直接运行 `uv run py main.py` 进行全量测试。
+- **控制变量实验 (feat/db-schema-only)**：
+    - 新增 `db_navigator.py` 模块，程序化提取数据库 Schema。
+    - 将提取到的 Schema Roadmap 直接注入到 System Prompt 的开头。
+    - 目的：验证单纯的“Schema 可见性”是否能解决选错表和盲目探测的问题。
 - **提交准备**：在导出镜像前，务必检查 `TODO.md`，将 `config.py` 中的模型配置切回环境变量优先模式，确保能读取到评测系统的 Key。
