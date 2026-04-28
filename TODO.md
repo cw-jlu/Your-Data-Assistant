@@ -1,7 +1,14 @@
 # 待办事宜 (TODO)
-## 需要完善的地方
-1. **完善 starter-kit\src\data_agent_baseline\tools\filesystem.py**：
-   - csv，json等预览函数需要改：实现读取文件的前几行，并返回一个包含数据预览的字典。
+
+## 待办实验与调优 (Next Steps)
+1. **模块化参数调优**：
+   - 针对 `exp/kg+pagerag` 分支，对比 `rag_top_k` 为 3, 5, 7 时的 Score 变化。
+   - 调整 `db_navigator` 中的样本数据量，观察对 Context Window 的影响。
+2. **效果对比实验**：
+   - 依次在所有分支运行 `run_failed.py`，记录成功率和平均得分，更新实验记录表。
+3. **GraphRAG 置信度阈值**：
+   - 测试将 `min_confidence` 从 0.5 提升至 0.7 对减少无效推理的帮助。
+
 ## 官方提交前必须修改的内容
 
 1. **修改 `config.py` 中的环境变量加载优先级**：
