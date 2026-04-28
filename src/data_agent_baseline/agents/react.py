@@ -118,11 +118,11 @@ class ReActAgent:
 
         _log(f"=== Starting Task {task.task_id} ===")
         
-        # 实验变量：注入全量数据路线图 (DB, CSV, JSON)
+        # 实验变量：Schema 知识图谱 v2 (FK + 样本 + LLM 文档语义)
         from data_agent_baseline.agents.db_navigator import get_data_roadmap
-        data_roadmap = get_data_roadmap(task.context_dir)
+        data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
         if data_roadmap:
-            _log("Data Roadmap (DB/CSV/JSON) injected into System Prompt.")
+            _log("Schema KG v2 injected (FK/samples/LLM semantics).")
 
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
