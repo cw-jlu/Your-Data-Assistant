@@ -423,12 +423,12 @@ def print_detailed_errors(results: list[dict]) -> None:
         console.print()
 
 
-def generate_markdown_report(results: list[dict], run_id: str, scores: dict, agent_cfg: dict = None) -> str:
+def generate_markdown_report(results: list[dict], run_id: str, scores: dict, agent_cfg: dict = None, branch_name: str = "unknown") -> str:
     """
     生成markdown格式的评估报告。
     """
     md = []
-    md.append("# 评估报告\n")
+    md.append(f"# 评估报告 - 分支: {branch_name}\n")
     md.append(f"**运行ID：** {run_id}\n")
     md.append(f"**评分公式：** Score = Recall - λ·(Extra/Predicted), λ = {scores['lambda_param']}\n\n")
     
@@ -539,7 +539,7 @@ def generate_markdown_report(results: list[dict], run_id: str, scores: dict, age
     return "".join(md)
 
 
-def save_markdown_report(results: list[dict], run_id: str, scores: dict, output_path: Optional[Path] = None, agent_cfg: dict = None) -> Path:
+def save_markdown_report(results: list[dict], run_id: str, scores: dict, output_path: Optional[Path] = None, agent_cfg: dict = None, branch_name: str = "unknown") -> Path:
     """
     保存markdown报告到文件。
     默认保存到 artifacts/runs/{run_id}/report.md
@@ -549,7 +549,7 @@ def save_markdown_report(results: list[dict], run_id: str, scores: dict, output_
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    md_content = generate_markdown_report(results, run_id, scores, agent_cfg=agent_cfg)
+    md_content = generate_markdown_report(results, run_id, scores, agent_cfg=agent_cfg, branch_name=branch_name)
     
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(md_content)
@@ -596,6 +596,7 @@ def main():
         help=f"Lambda parameter for penalty term (default: {LAMBDA_PARAM})",
     )
 
+    parser.add_argument("--branch", type=str, default="unknown", help="Name of the experiment branch")
     args = parser.parse_args()
 
     # 如果命令行指定了lambda，更新全局变量
@@ -647,7 +648,7 @@ def main():
     # 保存markdown报告
     if args.save_md or args.md_path:
         md_path = Path(args.md_path) if args.md_path else None
-        save_markdown_report(results, args.run_id, scores, md_path, agent_cfg=agent_cfg)
+        save_markdown_report(results, args.run_id, scores, md_path, agent_cfg=agent_cfg, branch_name=args.branch)
 
 
 if __name__ == "__main__":
