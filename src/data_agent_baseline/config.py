@@ -31,7 +31,7 @@ class AgentConfig:
     embedding_model: str = str(PROJECT_ROOT / "models" / "bge-small-en-v1.5")
     api_base: str = "https://api.openai.com/v1"
     api_key: str = ""
-    max_steps: int = 16
+    max_steps: int = 35
     temperature: float = 0.0
     max_tokens: int | None = 8192
     rag_top_k: int = 5  # PageRAG/GraphRAG 检索返回的最大分块数

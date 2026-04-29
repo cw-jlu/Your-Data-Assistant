@@ -42,7 +42,7 @@ class OpenAIModelAdapter:
         api_key: str,
         temperature: float,
         max_tokens: int | None = None,
-        embedding_model: str = "BAAI/bge-small-zh-v1.5",
+        embedding_model: str = "BAAI/bge-small-en-v1.5",
     ) -> None:
         self.model = model
         self.embedding_model = embedding_model

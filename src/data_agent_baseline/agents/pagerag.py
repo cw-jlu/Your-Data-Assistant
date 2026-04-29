@@ -62,6 +62,11 @@ def _chunk_document(text: str, source: str, model=None, max_chunk_chars: int = 1
     2. 若无标题，如果有大模型，则调用大模型生成目录结构并按此逻辑切分
     3. fallback: 按段落换行切分
     """
+    chunks = []
+    # 第一优先级：检查是否有原生标题
+    header_parts = re.split(r'(?=^#{1,3}\s)', text, flags=re.MULTILINE)
+    header_parts = [p.strip() for p in header_parts if p.strip()]
+
     if len(header_parts) > 1:
         # 有原生标题结构
         for part in header_parts:
