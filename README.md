@@ -213,13 +213,7 @@ artifacts/runs/<run_id>/summary.json
 
 ## 主要模块
 
-| 模块 | 责任 |
-| --- | --- |
-| `src/data_agent_baseline/benchmark/dataset.py` | 公开数据集加载器 |
-| `src/data_agent_baseline/tools/filesystem.py` | `list_context`、`read_csv`、`read_json`、`read_doc` |
-| `src/data_agent_baseline/tools/python_exec.py` | `execute_python` |
-| `src/data_agent_baseline/tools/sqlite.py` | `inspect_sqlite_schema`、`execute_context_sql` |
-| `src/data_agent_baseline/tools/registry.py` | 工具注册与终止型 `answer` |
-| `src/data_agent_baseline/agents/prompt.py` | system prompt、task prompt、observation prompt |
-| `src/data_agent_baseline/agents/react.py` | 基于 JSON action 协议的 ReAct runtime |
-| `src/data_agent_baseline/run/runner.py` | 单任务和批量运行逻辑 |
+| `src/data_agent_baseline/agents/pagerag.py` | 标题驱动的两层级联 PageRAG (v2.1) |
+| `src/data_agent_baseline/agents/db_navigator.py` | 增强型 KG 导航器（包含样本数据与外键提取） |
+| `src/data_agent_baseline/agents/model.py` | 支持 OpenAI API 与本地 SentenceTransformer 的适配器 |
+| `src/data_agent_baseline/run/runner.py` | 基于临时文件的鲁棒运行调度器 (修复 IPC 死锁) |

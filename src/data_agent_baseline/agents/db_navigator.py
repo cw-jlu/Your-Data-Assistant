@@ -14,7 +14,7 @@ from pathlib import Path
 from collections import defaultdict
 
 
-def _scan_databases(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
+def _scan_databases(context_dir: Path) -> tuple[list[str], dict[str, list[str]], list[str]]:
     """扫描所有 .db 文件，提取表结构、外键、行数和样本。"""
     lines = []
     sources: dict[str, list[str]] = {}
@@ -156,13 +156,12 @@ def _parse_knowledge_md(context_dir: Path) -> list[str]:
                     s = line.strip()
                     if not s:
                         continue
-                    # 提取定义性内容
                     if (
                         s.startswith(("- ", "* ", "•")) or
                         ":" in s or
                         s.startswith("##") or
                         "=" in s or
-                        s.startswith("|")  # 表格行
+                        s.startswith("|")
                     ):
                         defs.append(f"  {s}")
                     if len(defs) >= 50:

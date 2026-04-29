@@ -132,14 +132,14 @@ class ReActAgent:
 
         _log(f"=== Starting Task {task.task_id} ===")
 
-        # --- 组合导航器 A (V2): KG + PageRAG ---
+        # --- 组合导航器 (V2.1): KG + PageRAG (Title-only) ---
         from data_agent_baseline.agents.db_navigator import get_data_roadmap
         from data_agent_baseline.agents.pagerag import PageRAGNavigator
         
         # 1. 获取全局结构图谱 (KG v2: 包含 FK、样本、LLM 文档语义)
         kg_roadmap = get_data_roadmap(task.context_dir, model=self.model)
         
-        # 2. 获取文档目录与相关页 (PageRAG v2: BM25 + 全局 rag_top_k)
+        # 2. 获取文档目录与相关页 (PageRAG v2.1: 标题向量化级联检索)
         pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k, model=self.model)
         doc_catalog = pagerag.get_catalog()
         retrieved_pages = pagerag.retrieve(task.question)
@@ -151,7 +151,7 @@ class ReActAgent:
         if retrieved_pages:
             data_roadmap += "\n" + retrieved_pages
             
-        _log(f"Hybrid Navigator (KG v2 + PageRAG v2, Top-K={self.config.rag_top_k}) initialized.")
+        _log(f"Hybrid Navigator (KG v2 + PageRAG v2.1, Top-K={self.config.rag_top_k}) initialized.")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
