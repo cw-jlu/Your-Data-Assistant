@@ -18,6 +18,8 @@ class ModelMessage:
 @dataclass(frozen=True, slots=True)
 class ModelStep:
     thought: str
+    reflection: str
+    data_sufficient: bool
     action: str
     action_input: dict[str, Any]
     raw_response: str
@@ -25,6 +27,9 @@ class ModelStep:
 
 class ModelAdapter(Protocol):
     def complete(self, messages: list[ModelMessage]) -> str:
+        raise NotImplementedError
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
         raise NotImplementedError
 
 
@@ -37,12 +42,15 @@ class OpenAIModelAdapter:
         api_key: str,
         temperature: float,
         max_tokens: int | None = None,
+        embedding_model: str = "BAAI/bge-small-zh-v1.5",
     ) -> None:
         self.model = model
+        self.embedding_model = embedding_model
         self.api_base = api_base.rstrip("/")
         self.api_key = api_key
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self._local_embedder = None
 
     def complete(self, messages: list[ModelMessage]) -> str:
         if not self.api_key:
@@ -75,6 +83,22 @@ class OpenAIModelAdapter:
             raise RuntimeError("Model response missing text content.")
         return content
 
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if self._local_embedder is None:
+            import logging
+            logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+            from sentence_transformers import SentenceTransformer
+            self._local_embedder = SentenceTransformer(self.embedding_model)
+
+        try:
+            safe_texts = [t.strip()[:2000] for t in texts]
+            if not safe_texts:
+                return []
+            embeddings = self._local_embedder.encode(safe_texts, normalize_embeddings=True)
+            return embeddings.tolist()
+        except Exception as exc:
+            raise RuntimeError(f"Local embedding failed: {exc}") from exc
+
 
 class ScriptedModelAdapter:
     def __init__(self, responses: list[str]) -> None:
@@ -85,3 +109,6 @@ class ScriptedModelAdapter:
         if not self._responses:
             raise RuntimeError("No scripted model responses remaining.")
         return self._responses.pop(0)
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 128 for _ in texts]

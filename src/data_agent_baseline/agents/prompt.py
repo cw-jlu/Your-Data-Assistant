@@ -33,7 +33,7 @@ def build_system_prompt(tool_descriptions: str, system_prompt: str | None = None
         f"{tool_descriptions}\n\n"
         f"{RESPONSE_EXAMPLES}\n\n"
         "You must always return a single ```json fenced block containing one JSON object "
-        "with keys `thought`, `action`, and `action_input`, and no extra text."
+        "with keys `thought`, `reflection`, `data_sufficient`, `action`, and `action_input`, and no extra text."
     )
 
 

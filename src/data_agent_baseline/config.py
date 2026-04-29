@@ -28,6 +28,7 @@ class DatasetConfig:
 @dataclass(frozen=True, slots=True)
 class AgentConfig:
     model: str = "qwen3.5-35b-a3b"
+    embedding_model: str = str(PROJECT_ROOT / "models" / "bge-small-en-v1.5")
     api_base: str = "https://api.openai.com/v1"
     api_key: str = ""
     max_steps: int = 16
@@ -75,6 +76,7 @@ def load_app_config(config_path: Path) -> AppConfig:
     )
     agent_config = AgentConfig(
         model=os.environ.get("MODEL_NAME") or str(agent_payload.get("model", agent_defaults.model)),
+        embedding_model=os.environ.get("EMBEDDING_MODEL_NAME") or str(agent_payload.get("embedding_model", agent_defaults.embedding_model)),
         api_base=os.environ.get("MODEL_API_URL") or str(agent_payload.get("api_base", agent_defaults.api_base)),
         api_key=os.environ.get("MODEL_API_KEY") or str(agent_payload.get("api_key", agent_defaults.api_key)),
         max_steps=int(agent_payload.get("max_steps", agent_defaults.max_steps)),

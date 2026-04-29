@@ -36,14 +36,14 @@ def _capture_process_streams(stdout_path: Path, stderr_path: Path):
 
             sys.stdout = io.TextIOWrapper(
                 os.fdopen(os.dup(1), "wb"),
-                encoding=stdout_encoding,
+                encoding="utf-8",
                 errors="replace",
                 line_buffering=True,
                 write_through=True,
             )
             sys.stderr = io.TextIOWrapper(
                 os.fdopen(os.dup(2), "wb"),
-                encoding=stderr_encoding,
+                encoding="utf-8",
                 errors="replace",
                 line_buffering=True,
                 write_through=True,
@@ -108,8 +108,8 @@ def execute_python_code(context_root: Path, code: str, *, timeout_seconds: int =
     with tempfile.TemporaryDirectory() as temp_dir:
         stdout_path = Path(temp_dir) / "stdout.txt"
         stderr_path = Path(temp_dir) / "stderr.txt"
-        stdout_path.write_text("")
-        stderr_path.write_text("")
+        stdout_path.write_text("", encoding="utf-8")
+        stderr_path.write_text("", encoding="utf-8")
 
         queue: multiprocessing.Queue[Any] = multiprocessing.Queue()
         process = multiprocessing.Process(

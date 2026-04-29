@@ -16,4 +16,7 @@ Rules:
 11. Never pass raw string directly to execute_python action_input.
 12. WARNING: Tools like `read_csv`, `read_json`, and `read_doc` ONLY return truncated previews (e.g., max 20 rows). They are strictly for previewing schemas. 
 13. IMPORTANT: To process full datasets (e.g., aggregating, filtering, searching all rows, or joining tables), you MUST use the `execute_python` tool to write scripts that read and process the full files from disk.
+14. ALWAYS output exactly one JSON object with keys `thought`, `reflection`, `data_sufficient`, `action`, and `action_input`.
+15. In `reflection`, explain what the current observed data solves, and what is still missing. If you failed previously, explicitly state why the failure happened and how to avoid it.
+16. Set `data_sufficient` to `true` ONLY if you have fully collected all required evidence to solve the task. If true, your next action MUST be to synthesize the final answer or use the `answer` tool.
 Keep reasoning concise and grounded in the observed data.

@@ -43,6 +43,12 @@ def _strip_json_fence(raw_response: str) -> str:
     generic_fence_match = re.search(r"```\s*(.*?)\s*```", text, flags=re.DOTALL)
     if generic_fence_match is not None:
         return generic_fence_match.group(1).strip()
+    
+    # 如果完全没有 markdown 标记，尝试直接提取最外层的 `{ ... }`
+    brace_match = re.search(r"(\{.*\})", text, flags=re.DOTALL)
+    if brace_match is not None:
+        return brace_match.group(1).strip()
+        
     return text
 
 
@@ -60,10 +66,14 @@ def parse_model_step(raw_response: str) -> ModelStep:
     payload = _load_json_object(normalized)
 
     thought = payload.get("thought", "")
+    reflection = payload.get("reflection", "")
+    data_sufficient = bool(payload.get("data_sufficient", False))
     action = payload.get("action")
     action_input = payload.get("action_input", {})
     if not isinstance(thought, str):
         raise ValueError("thought must be a string.")
+    if not isinstance(reflection, str):
+        raise ValueError("reflection must be a string.")
     if not isinstance(action, str) or not action:
         raise ValueError("action must be a non-empty string.")
     if not isinstance(action_input, dict):
@@ -71,6 +81,8 @@ def parse_model_step(raw_response: str) -> ModelStep:
 
     return ModelStep(
         thought=thought,
+        reflection=reflection,
+        data_sufficient=data_sufficient,
         action=action,
         action_input=action_input,
         raw_response=raw_response,
@@ -93,10 +105,11 @@ class ReActAgent:
         self.system_prompt = system_prompt or REACT_SYSTEM_PROMPT
 
     # 构建发送给模型的对话消息列表（包含系统提示词、任务描述和历史步骤）
-    def _build_messages(self, task: PublicTask, state: AgentRuntimeState) -> list[ModelMessage]:
+    def _build_messages(self, task: PublicTask, state: AgentRuntimeState, data_roadmap: str | None = None) -> list[ModelMessage]:
         system_content = build_system_prompt(
             self.tools.describe_for_prompt(),
             system_prompt=self.system_prompt,
+            data_roadmap=data_roadmap,
         )
         messages = [ModelMessage(role="system", content=system_content)]
         messages.append(ModelMessage(role="user", content=build_task_prompt(task)))
@@ -127,7 +140,7 @@ class ReActAgent:
         kg_roadmap = get_data_roadmap(task.context_dir, model=self.model)
         
         # 2. 获取文档目录与相关页 (PageRAG v2: BM25 + 全局 rag_top_k)
-        pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k)
+        pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k, model=self.model)
         doc_catalog = pagerag.get_catalog()
         retrieved_pages = pagerag.retrieve(task.question)
         
@@ -218,7 +231,7 @@ class ReActAgent:
                 
                 step_record = StepRecord(
                     step_index=step_index,
-                    thought=model_step.thought,
+                    thought=f"Thought: {model_step.thought}\nReflection: {model_step.reflection}\nData Sufficient: {model_step.data_sufficient}",
                     action=model_step.action,
                     action_input=model_step.action_input,
                     raw_response=raw_response,
