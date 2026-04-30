@@ -27,7 +27,8 @@ data/
 docs/
 tests/
 evaluation/
-# artifacts/
+artifacts/
+scratch/
 models/
 
 # Local configs

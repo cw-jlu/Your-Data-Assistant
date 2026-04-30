@@ -78,24 +78,37 @@ def _scan_databases(context_dir: Path) -> tuple[list[str], dict[str, list[str]],
 
 
 def _scan_csv(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
-    """扫描 CSV 文件表头。"""
+    """扫描 CSV 文件表头、行数和样本。"""
     lines = []
     sources: dict[str, list[str]] = {}
     for csv_path in sorted(context_dir.rglob("*.csv")):
         rel = csv_path.relative_to(context_dir)
         try:
             with csv_path.open("r", encoding="utf-8", errors="replace") as f:
-                header = next(csv.reader(f), None)
+                reader = csv.reader(f)
+                header = next(reader, None)
                 if header:
                     sources[str(rel)] = header
-                    lines.append(f"\n[CSV] {rel}: {', '.join(header)}")
+                    
+                    # 获取样本和行数
+                    sample_rows = []
+                    total_rows = 0
+                    for row in reader:
+                        if len(sample_rows) < 3:
+                            sample_rows.append(str(row)[:200])
+                        total_rows += 1
+                    
+                    lines.append(f"\n[CSV] {rel} ({total_rows} rows)")
+                    lines.append(f"  Columns: {', '.join(header)}")
+                    if sample_rows:
+                        lines.append(f"  Sample: {'; '.join(sample_rows)}")
         except Exception:
             pass
     return lines, sources
 
 
 def _scan_json(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
-    """扫描 JSON 文件顶层键。"""
+    """扫描 JSON 文件，智能识别列表结构并提取样本。"""
     lines = []
     sources: dict[str, list[str]] = {}
     for json_path in sorted(context_dir.rglob("*.json")):
@@ -103,14 +116,34 @@ def _scan_json(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
         try:
             with json_path.open("r", encoding="utf-8", errors="replace") as f:
                 data = json.load(f)
-                keys = []
-                if isinstance(data, dict):
-                    keys = list(data.keys())
-                elif isinstance(data, list) and data and isinstance(data[0], dict):
-                    keys = list(data[0].keys())
-                if keys:
+                
+                records = []
+                if isinstance(data, list):
+                    records = data
+                elif isinstance(data, dict):
+                    # 尝试查找名为 records, data, items 的列表
+                    for key in ["records", "data", "items"]:
+                        if key in data and isinstance(data[key], list):
+                            records = data[key]
+                            break
+                    if not records:
+                        # 如果没有找到标准列表，就用顶层键作为列名
+                        keys = list(data.keys())
+                        sources[str(rel)] = keys
+                        lines.append(f"\n[JSON] {rel}: {', '.join(keys)}")
+                        continue
+                
+                if records and isinstance(records[0], dict):
+                    keys = list(records[0].keys())
                     sources[str(rel)] = keys
-                    lines.append(f"\n[JSON] {rel}: {', '.join(keys)}")
+                    
+                    sample_strs = [str(r)[:200] for r in records[:3]]
+                    lines.append(f"\n[JSON] {rel} ({len(records)} records)")
+                    lines.append(f"  Columns: {', '.join(keys)}")
+                    lines.append(f"  Sample: {'; '.join(sample_strs)}")
+                elif records:
+                    lines.append(f"\n[JSON] {rel} ({len(records)} items)")
+                    lines.append(f"  Sample: {str(records[:3])[:500]}")
         except Exception:
             pass
     return lines, sources
@@ -143,34 +176,50 @@ def _find_join_hints(sources: dict[str, list[str]], fk_relations: list[str]) -> 
     return hints
 
 
-def _parse_knowledge_md(context_dir: Path) -> list[str]:
-    """深度解析 knowledge.md，提取业务定义和规则。"""
+def _parse_knowledge_md(context_dir: Path, model=None) -> list[str]:
+    """使用 LLM 深度解析 knowledge.md，提取结构化的业务规则和映射。"""
     lines = []
     for k_name in ["knowledge.md", "Knowledge.md"]:
         k_path = context_dir / k_name
         if k_path.exists():
             try:
                 text = k_path.read_text(encoding="utf-8", errors="replace")
-                defs = []
+                
+                if model:
+                    from data_agent_baseline.agents.model import ModelMessage
+                    prompt = (
+                        "You are a Senior Data Engineer. Analyze the following business knowledge document "
+                        "and extract structured business logic to guide a data analysis agent.\n\n"
+                        f"Document Content:\n{text[:5000]}\n\n"
+                        "Extract the following into clear bullet points:\n"
+                        "1. Categorical Mappings: Map business terms to specific table fields and values (e.g., 'Severe' -> Table.Field = Value).\n"
+                        "2. Business Formulas: Extract KPIs and calculation rules.\n"
+                        "3. Thresholds: Extract any numeric limits mentioned.\n"
+                        "4. Join Rules: Note which fields link different tables.\n"
+                        "Output ONLY the bullet points, no conversational filler."
+                    )
+                    response = model.complete([ModelMessage(role="user", content=prompt)])
+                    if response and response.strip():
+                        lines.append(f"\n[BUSINESS LOGIC GRAPH] (extracted from {k_name}):")
+                        for bullet in response.strip().splitlines():
+                            b = bullet.strip()
+                            if b:
+                                lines.append(f"  {b}")
+                
+                # 保留原始的一些关键行作为参考 (如 SQL 示例)
+                raw_refs = []
                 for line in text.splitlines():
                     s = line.strip()
-                    if not s:
-                        continue
-                    if (
-                        s.startswith(("- ", "* ", "•")) or
-                        ":" in s or
-                        s.startswith("##") or
-                        "=" in s or
-                        s.startswith("|")
-                    ):
-                        defs.append(f"  {s}")
-                    if len(defs) >= 50:
-                        break
-                if defs:
-                    lines.append(f"\n[KNOWLEDGE] {k_name} (business definitions):")
-                    lines.extend(defs)
-            except Exception:
-                pass
+                    if not s: continue
+                    if "SELECT" in s.upper() or "WHERE" in s.upper() or s.startswith("###"):
+                        raw_refs.append(f"  {s}")
+                
+                if raw_refs:
+                    lines.append(f"\n[RAW REFERENCES] (key examples from {k_name}):")
+                    lines.extend(raw_refs[:30]) # 限制参考行数
+
+            except Exception as e:
+                lines.append(f"\n[KNOWLEDGE] {k_name} (Error during LLM parse: {e})")
             break
     return lines
 
@@ -203,7 +252,7 @@ def _extract_doc_semantics_with_llm(model, context_dir: Path) -> list[str]:
             response = model.complete([ModelMessage(role="user", content=prompt)])
             if response and response.strip():
                 lines.append(f"\n[DOC SEMANTICS] {rel}:")
-                for bullet in response.strip().splitlines()[:7]:
+                for bullet in response.strip().splitlines():
                     b = bullet.strip()
                     if b:
                         lines.append(f"  {b}")
@@ -242,7 +291,7 @@ def get_data_roadmap(context_dir: Path, model=None) -> str:
     all_lines.extend(join_hints)
 
     # 3. knowledge.md 业务定义
-    knowledge_lines = _parse_knowledge_md(context_dir)
+    knowledge_lines = _parse_knowledge_md(context_dir, model=model)
     all_lines.extend(knowledge_lines)
 
     # 4. 其他文档 LLM 语义抽取

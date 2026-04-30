@@ -1,58 +1,81 @@
-# 🤖 Data Agent 整体 Prompt 结构白皮书 (v2.1)
+# 🤖 Data Agent 整体 Prompt 结构白皮书 (v2.2)
 
-本项目采用 **“全知静态导航 + 动态历史反思”** 的双轨 Prompt 架构，旨在通过最大化背景上下文质量来降低 Agent 的推理压力。
+本项目采用 **“全知混合导航 + 动态历史反思”** 的双轨 Prompt 架构。通过在系统起始阶段注入高质量的数据路线图（Roadmap），将 Agent 从盲目的文件探索中解放出来，专注于逻辑推理与代码执行。
 
 ---
 
-## 1. 静态基础层 (Static Foundation)
-*在任务开始（Step 1）时即完整注入，为 Agent 提供全局视野。*
+## 1. 系统提示词架构 (System Message Structure)
 
-| 组件 | 内容描述 | 目的 |
+系统提示词是 Agent 的“大脑预装程序”，由以下部分按顺序拼接而成：
+
+### A. 核心指令 (ReAct System Prompt)
+- **定义**：确立 ReAct 思维链协议（Thought -> Action -> Observation）。
+- **规范**：强制要求输出严格格式化的 JSON 块。
+- **行为准则**：包括如何处理缺失数据、如何调用 `answer` 工具等。
+
+### B. 混合数据路线图 (Hybrid Data Roadmap)
+*这是系统的核心竞争力，包含全量 Schema 知识图谱。*
+
+| 模块名称 | 内容组成 | 注入逻辑 |
 | :--- | :--- | :--- |
-| **System Prompt** | ReAct 协议定义、JSON 输出规范、工具说明书。 | 确立 Agent 的思维框架与行为边界。 |
-| **Data Roadmap** | 包含 [DB] 样本、[FK] 外键、[KNOWLEDGE] 业务定义。 | 让 Agent 拥有“上帝视角”，无需盲目探索文件。 |
-| **Semantic Index** | 每个文档的 3-5 点语义概览（DOC SEMANTICS）。 | 指引 Agent 决定何时去“翻阅”哪个文档。 |
-| **Pre-RAG Context** | 针对当前问题，由 PageRAG 预先检索到的相关原文。 | **冷启动加速**：很多简单问题在 Step 1 就能直接根据此内容给出答案。 |
+| **[DB] 数据库结构** | 表名、列名(类型)、**总行数**、前 3 行样本。 | 自动扫描所有 `.db` 文件。 |
+| **[CSV/JSON] 文件结构** | 文件名、**推断列名**、**总记录数**、前 3 条样本。 | 智能识别 JSON 包装结构（如 `records` 列表）。 |
+| **[FK] 关联关系** | 物理外键关系、基于同名字段的逻辑关联建议。 | 自动发现跨表 `ID` 关联。 |
+| **[KNOWLEDGE] 业务定义** | `knowledge.md` 中的所有业务规则、指标公式、SQL 示例。 | **全量注入**（无行数截断），确保示例 SQL 可见。 |
+| **[DOC SEMANTICS] 文档语义** | 其他 MD/TXT 文件的 LLM 摘要总结。 | 无点数限制，由 LLM 提取核心业务实体。 |
+| **[PageRAG] 文档检索** | 针对当前问题的文档目录 (Catalog) 与相关片段。 | 动态检索，提供针对性的背景知识。 |
+
+### C. 工具说明书 (Tool Descriptions)
+- 列出所有可用工具及其 JSON Schema 格式（`read_json`, `execute_python`, `answer` 等）。
+
+### D. 响应示例 (Response Examples)
+- 提供 1-2 个标准的 JSON 响应模板，防止格式崩溃。
 
 ---
 
-## 2. 动态增长层 (Dynamic Growth)
-*随着 ReAct 循环（思考 -> 行动 -> 观察）不断追加，记录 Agent 的决策演进。*
+## 2. 任务提示词 (Task Message Structure) —— `role: user`
 
-### A. 履历链 (History Chain) —— `role: assistant` & `role: user`
-每完成一个步骤，都会在消息队列尾部顺序追加：
-1.  **Assistant 回复**：上一步的 `thought`（思维过程）、`reflection`（自我反思）和 `action`。
-2.  **User 观察 (Observation)**：工具执行的真实反馈，格式为 JSON。
-    *   *示例：* `{"ok": true, "tool": "python_executor", "content": "Query result: 42"}`
-
-### B. 反思提示 (Reflection Hint) —— 注入于 `Observation`
-这是**容错机制**的动态体现。当 Agent 连续报错达到阈值（默认 3 次）时：
-*   **注入方式**：在最新的 Observation JSON 中添加 `error_hint` 字段。
-*   **内容**：提示 Agent “你已经连续错了 X 次，请仔细检查 JSON 格式和工具规范，重新审视你的方案”。
-
-### C. 熔断与反馈 (Circuit Breaker)
-*   **死循环检测**：如果动态检测到 Agent 连续执行了 3 次完全相同的 Action，系统会触发异常观察，强迫模型停止重复行为。
-
----
-
-## 3. 完整 Prompt 拼接逻辑 (Pseudo-code)
-
-```python
-# 1. 初始构建 (Step 1)
-Prompt = System_Instructions + Data_Roadmap + Task_Question
-
-# 2. 循环演进 (Step N)
-For each completed_step:
-    Prompt += Assistant_Response(N-1)
-    Prompt += Observation(N-1)
-    
-    If consecutive_errors >= threshold:
-        Prompt.last_observation += Reflection_Warning
+在系统消息之后，紧接着发送具体的任务描述：
+```text
+Question: [用户提出的原始问题]
+All tool file paths are relative to the task context directory. 
+When you have the final table, call the `answer` tool.
 ```
 
 ---
 
-## 4. 优势总结
-1.  **极高信噪比**：通过 PageRAG 预检索和 Title-only 策略，只投喂高度相关的片段，避免 Context Window 膨胀。
-2.  **自我纠正**：动态的 `reflection_hint` 机制显著提升了 Agent 在遇到编码、路径或语法错误时的“生还率”。
-3.  **零探索成本**：静态 Roadmap 确保 Agent 在起跑线上就掌握了数据库结构和业务词典，将有限的步数全部用于解决核心逻辑。
+## 3. 动态对话历史 (Conversation History)
+
+Agent 运行过程中的每一轮迭代都会作为对话历史追加：
+
+- **Assistant (role: assistant)**: 
+  ```json
+  {
+    "thought": "我需要查找严重血栓患者...",
+    "reflection": "上一步我发现 A 字段在 JSON 中...",
+    "data_sufficient": false,
+    "action": "execute_python",
+    "action_input": { "code": "..." }
+  }
+  ```
+- **User (role: user)**: 
+  ```text
+  Observation:
+  {
+    "ok": true,
+    "tool": "execute_python",
+    "content": { "success": true, "output": "Found 3 patients..." }
+  }
+  ```
+
+### 容错增强：反思注入 (Reflection Hint)
+当 Agent 连续报错时，系统会在最新的 `Observation` 中注入警告：
+> "[SYSTEM WARNING] You have encountered multiple consecutive errors. Please carefully analyze the error messages above... Rethink your current approach."
+
+---
+
+## 4. 为什么这样设计？
+
+1.  **消除首轮冷启动**：通过在 Roadmap 中加入样本数据（Sample），Agent 在第一步就能写出正确的 Python 过滤代码（例如知道性别字段值是 "M" 而不是 "Male"），无需先去“试读”文件。
+2.  **业务规则前置**：通过全量注入 `knowledge.md`，Agent 能在第一时间掌握复杂的医学指标定义和 SQL 查询范式（如 `Thrombosis = 2` 代表严重）。
+3.  **减少 Token 往返**：高质量的 Roadmap 减少了 Agent 为了解结构而进行的无效工具调用，将有限的 `max_steps` 全部用于核心解题。

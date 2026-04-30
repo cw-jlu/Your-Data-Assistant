@@ -75,6 +75,7 @@ def build_model_adapter(config: AppConfig):
         api_key=config.agent.api_key,
         temperature=config.agent.temperature,
         max_tokens=config.agent.max_tokens,
+        embedding_model=config.agent.embedding_model,
     )
 
 
@@ -306,6 +307,7 @@ def run_benchmark(
             "config": {
                 "agent": {
                     "model": config.agent.model,
+                    "embedding_model": config.agent.embedding_model,
                     "max_steps": config.agent.max_steps,
                     "temperature": config.agent.temperature,
                     "max_tokens": config.agent.max_tokens,

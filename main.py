@@ -11,7 +11,7 @@ from data_agent_baseline.config import load_app_config, DatasetConfig, RunConfig
 
 def main():
     root_dir = Path(__file__).resolve().parent
-    config_path = root_dir / "configs" / "react_baseline.example.yaml"
+    config_path = root_dir / "configs" / "react_baseline.local.yaml"
     
     # Load base config
     app_config = load_app_config(config_path)
