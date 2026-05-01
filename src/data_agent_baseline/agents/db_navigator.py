@@ -36,25 +36,8 @@ def _scan_databases(context_dir: Path) -> tuple[list[str], dict[str, list[str]],
                 col_desc = [f"{c[1]}({c[2]})" for c in cols]
                 sources[f"{rel}::{table_name}"] = col_names
 
-                # 行数
-                try:
-                    cursor.execute(f"SELECT COUNT(*) FROM '{table_name}'")
-                    row_count = cursor.fetchone()[0]
-                except Exception:
-                    row_count = "?"
-
-                lines.append(f"\n[DB] {rel} → '{table_name}' ({row_count} rows)")
+                lines.append(f"\n[DB] {rel} → '{table_name}'")
                 lines.append(f"  Columns: {', '.join(col_desc)}")
-
-                # 样本数据（前 3 行，每行截断 200 字符）
-                try:
-                    cursor.execute(f"SELECT * FROM '{table_name}' LIMIT 3")
-                    samples = cursor.fetchall()
-                    if samples:
-                        sample_strs = [str(row)[:200] for row in samples]
-                        lines.append(f"  Sample: {'; '.join(sample_strs)}")
-                except Exception:
-                    pass
 
                 # 外键关系
                 try:
@@ -90,18 +73,8 @@ def _scan_csv(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
                 if header:
                     sources[str(rel)] = header
                     
-                    # 获取样本和行数
-                    sample_rows = []
-                    total_rows = 0
-                    for row in reader:
-                        if len(sample_rows) < 3:
-                            sample_rows.append(str(row)[:200])
-                        total_rows += 1
-                    
-                    lines.append(f"\n[CSV] {rel} ({total_rows} rows)")
+                    lines.append(f"\n[CSV] {rel}")
                     lines.append(f"  Columns: {', '.join(header)}")
-                    if sample_rows:
-                        lines.append(f"  Sample: {'; '.join(sample_rows)}")
         except Exception:
             pass
     return lines, sources
@@ -137,13 +110,10 @@ def _scan_json(context_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
                     keys = list(records[0].keys())
                     sources[str(rel)] = keys
                     
-                    sample_strs = [str(r)[:200] for r in records[:3]]
-                    lines.append(f"\n[JSON] {rel} ({len(records)} records)")
+                    lines.append(f"\n[JSON] {rel}")
                     lines.append(f"  Columns: {', '.join(keys)}")
-                    lines.append(f"  Sample: {'; '.join(sample_strs)}")
                 elif records:
-                    lines.append(f"\n[JSON] {rel} ({len(records)} items)")
-                    lines.append(f"  Sample: {str(records[:3])[:500]}")
+                    lines.append(f"\n[JSON] {rel}")
         except Exception:
             pass
     return lines, sources
@@ -245,9 +215,10 @@ def _extract_doc_semantics_with_llm(model, context_dir: Path) -> list[str]:
             rel = doc_path.relative_to(context_dir)
             prompt = (
                 f"Document: {rel}\n\n{text}\n\n"
-                "Summarize the key data-related concepts in this document in 3-5 bullet points. "
-                "Focus on: column definitions, business rules, thresholds, categories, and data relationships. "
-                "Output ONLY bullet points, no introduction."
+                "Please provide a single-sentence summary of this document in the format: "
+                f"'{doc_path.name}: [purpose and main content object]'. "
+                "For example: 'orders.csv: Contains order fact data, including user, amount, time, and status.' "
+                "Output ONLY the single sentence, with no introduction or markdown formatting."
             )
             response = model.complete([ModelMessage(role="user", content=prompt)])
             if response and response.strip():

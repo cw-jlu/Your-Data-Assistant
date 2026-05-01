@@ -302,56 +302,87 @@ class PageRAGNavigator:
 
     def retrieve(self, query: str, top_k: int | None = None) -> str:
         """
-        基于标题的级联检索：
-        1. Query vs Page Summaries -> 锁定最相关的 Page
-        2. Query vs Chunk Titles (in selected pages) -> 锁定具体 Section
-        3. 直接返回命中 Section 的原文 Content
+        基于 RRF 的融合检索与 LLM Rerank
         """
-        k = top_k or self.top_k
-        if not self.pages:
+        top_r = top_k or self.top_k
+        k_retrieve = top_r * 2
+        
+        if not self.pages or not self.all_chunks:
             return ""
 
-        q_emb_list = self.model.embed([query]) if self.model else None
-        q_emb = None
-        if q_emb_list:
-            q_emb = np.array(q_emb_list[0], dtype=np.float32)
-            q_norm = np.linalg.norm(q_emb)
-            if q_norm > 0:
-                q_emb = q_emb / q_norm
+        query_words = _tokenize(query)
 
-        # --- Step 1: Page-level Filter ---
-        candidate_page_ids = set(range(len(self.pages)))
-        if self._page_embeddings is not None and q_emb is not None:
-            page_sims = np.dot(self._page_embeddings, q_emb)
-            top_p_indices = np.argsort(page_sims)[::-1][:2] # 缩小范围到 Top 2 Page
-            candidate_page_ids = {int(i) for i in top_p_indices if page_sims[i] > 0.1}
+        # 1. 计算所有 chunk 的 Vector 和 BM25 score
+        vector_scores = np.zeros(len(self.all_chunks))
+        if self.model and self._title_embeddings is not None:
+            q_emb_list = self.model.embed([query])
+            if q_emb_list:
+                q_emb = np.array(q_emb_list[0], dtype=np.float32)
+                q_norm = np.linalg.norm(q_emb)
+                if q_norm > 0:
+                    q_emb = q_emb / q_norm
+                    vector_scores = np.dot(self._title_embeddings, q_emb)
+        
+        bm25_scores = np.zeros(len(self.all_chunks))
+        if self._bm25_tags:
+            for i in range(len(self.all_chunks)):
+                bm25_scores[i] = self._bm25_tags.score(query_words, i)
 
-        # --- Step 2: Title-level Match (Vector) ---
-        top_indices = set()
-        if self._title_embeddings is not None and q_emb is not None:
-            title_sims = np.dot(self._title_embeddings, q_emb)
-            mask = np.array([c["page_id"] in candidate_page_ids for c in self.all_chunks])
-            masked_sims = np.where(mask, title_sims, -1.0)
-            
-            top_k_indices = np.argsort(masked_sims)[::-1][:k]
-            top_indices = {int(i) for i in top_k_indices if masked_sims[i] > 0.1}
+        # 2. RRF (Reciprocal Rank Fusion)
+        def get_ranks(scores):
+            sorted_indices = np.argsort(scores)[::-1]
+            ranks = np.zeros(len(scores))
+            for rank, idx in enumerate(sorted_indices):
+                ranks[idx] = rank + 1
+            return ranks
 
-        # --- Step 3: BM25 Fallback (on Titles) ---
-        if self._bm25_tags and not top_indices:
-            query_words = _tokenize(query)
-            tag_scored = [(i, self._bm25_tags.score(query_words, i)) for i in range(len(self.all_chunks))]
-            tag_scored.sort(key=lambda x: x[1], reverse=True)
-            top_indices = {i for i, s in tag_scored[:k] if s > 0}
+        vector_ranks = get_ranks(vector_scores)
+        bm25_ranks = get_ranks(bm25_scores)
 
-        if not top_indices:
+        rrf_k = 60
+        rrf_scores = np.zeros(len(self.all_chunks))
+        for i in range(len(self.all_chunks)):
+            v_score = 1.0 / (rrf_k + vector_ranks[i]) if vector_scores[i] > 0 else 0
+            b_score = 1.0 / (rrf_k + bm25_ranks[i]) if bm25_scores[i] > 0 else 0
+            rrf_scores[i] = v_score + b_score
+
+        top_k_indices = np.argsort(rrf_scores)[::-1][:k_retrieve]
+        candidates = [i for i in top_k_indices if rrf_scores[i] > 0]
+        if not candidates:
             return ""
 
-        # --- Step 4: Result Formatting (Direct Original Content) ---
-        lines = [f"\n=== [PageRAG] Relevant Documentation (Title-matched) ==="]
-        final_list = sorted(list(top_indices))[:5]
+        # 3. LLM Rerank
+        final_list = candidates[:top_r]
+        if self.model and len(candidates) > 1:
+            try:
+                from data_agent_baseline.agents.model import ModelMessage
+                
+                prompt = f"Given the user query: '{query}', rate the relevance of the following document sections on a scale of 0 to 10.\n"
+                prompt += "Output ONLY a comma-separated list of scores in the exact same order, e.g. '8, 2, 10'.\n\n"
+                for idx, c_idx in enumerate(candidates):
+                    chunk = self.all_chunks[c_idx]
+                    prompt += f"Section {idx+1} [{chunk['source']} - {chunk['title']}]:\n{chunk['content'][:300]}...\n\n"
+                
+                resp = self.model.complete([ModelMessage(role="user", content=prompt)])
+                
+                scores_str = re.findall(r'\d+', resp)
+                if len(scores_str) == len(candidates):
+                    llm_scores = [int(s) for s in scores_str]
+                    scored_candidates = sorted(zip(candidates, llm_scores), key=lambda x: x[1], reverse=True)
+                    final_list = [c for c, s in scored_candidates if s >= 5][:top_r]
+                    if not final_list:
+                        final_list = candidates[:1]
+            except Exception:
+                final_list = candidates[:top_r]
+
+        if not final_list:
+            return ""
+
+        # 4. Result Formatting
+        lines = [f"\n=== [PageRAG] Relevant Documentation (Reranked) ==="]
         for i in final_list:
             chunk = self.all_chunks[i]
             lines.append(f"\n--- [{chunk['source']}] Section: {chunk['title']} ---")
-            lines.append(chunk["content"]) # 直接返回原文内容
+            lines.append(chunk["content"])
 
         return "\n".join(lines)

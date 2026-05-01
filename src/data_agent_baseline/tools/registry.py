@@ -193,7 +193,11 @@ def create_default_tool_registry() -> ToolRegistry:
         ),
         "read_doc": ToolSpec(
             name="read_doc",
-            description="Read a text-like document inside context.",
+            description=(
+                "Read a text-like document inside context. "
+                "For 'knowledge.md', returns the full document preview. "
+                "For other '.md' files, automatically performs semantic search and returns the most relevant sections to the current task."
+            ),
             input_schema={"path": "relative/path/to/file.md", "max_chars": 4000},
         ),
         "read_json": ToolSpec(
