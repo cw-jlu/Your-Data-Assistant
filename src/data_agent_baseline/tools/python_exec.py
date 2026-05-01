@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import multiprocessing
 import os
 import sys
-import tempfile
 import traceback
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -77,7 +78,7 @@ def _run_python_code(
     code: str,
     stdout_path: str,
     stderr_path: str,
-    queue: multiprocessing.Queue[Any],
+    result_path: str,
 ) -> None:
     namespace: dict[str, Any] = {
         "__builtins__": __builtins__,
@@ -87,31 +88,38 @@ def _run_python_code(
     }
     resolved_stdout_path = Path(stdout_path)
     resolved_stderr_path = Path(stderr_path)
+    resolved_result_path = Path(result_path)
 
     try:
         os.chdir(context_root)
         with _capture_process_streams(resolved_stdout_path, resolved_stderr_path):
             exec(code, namespace, namespace)
-        queue.put({"success": True})
+        resolved_result_path.write_text(json.dumps({"success": True}), encoding="utf-8")
     except BaseException as exc:  # noqa: BLE001
-        queue.put(
-            {
-                "success": False,
-                "error": str(exc),
-                "traceback": traceback.format_exc(),
-            }
+        resolved_result_path.write_text(
+            json.dumps(
+                {
+                    "success": False,
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(),
+                }
+            ),
+            encoding="utf-8",
         )
 
 
 def execute_python_code(context_root: Path, code: str, *, timeout_seconds: int = 30) -> dict[str, Any]:
     resolved_context_root = context_root.resolve()
-    with tempfile.TemporaryDirectory() as temp_dir:
-        stdout_path = Path(temp_dir) / "stdout.txt"
-        stderr_path = Path(temp_dir) / "stderr.txt"
+    scratch_root = Path.cwd() / "scratch" / "execute_python"
+    scratch_root.mkdir(parents=True, exist_ok=True)
+    run_id = uuid.uuid4().hex
+    stdout_path = scratch_root / f"{run_id}.stdout.txt"
+    stderr_path = scratch_root / f"{run_id}.stderr.txt"
+    result_path = scratch_root / f"{run_id}.result.json"
+    try:
         stdout_path.write_text("", encoding="utf-8")
         stderr_path.write_text("", encoding="utf-8")
-
-        queue: multiprocessing.Queue[Any] = multiprocessing.Queue()
+        result_path.write_text("", encoding="utf-8")
         process = multiprocessing.Process(
             target=_run_python_code,
             args=(
@@ -119,7 +127,7 @@ def execute_python_code(context_root: Path, code: str, *, timeout_seconds: int =
                 code,
                 stdout_path.as_posix(),
                 stderr_path.as_posix(),
-                queue,
+                result_path.as_posix(),
             ),
         )
         process.start()
@@ -127,7 +135,10 @@ def execute_python_code(context_root: Path, code: str, *, timeout_seconds: int =
 
         if process.is_alive():
             process.terminate()
-            process.join()
+            process.join(timeout=1.0)
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=1.0)
             return {
                 "success": False,
                 "output": _read_captured_stream(stdout_path),
@@ -135,15 +146,24 @@ def execute_python_code(context_root: Path, code: str, *, timeout_seconds: int =
                 "error": f"Python execution timed out after {timeout_seconds} seconds.",
             }
 
-        if queue.empty():
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8") or "{}")
+        except json.JSONDecodeError:
+            result = {}
+
+        if not result:
             return {
                 "success": False,
                 "output": _read_captured_stream(stdout_path),
                 "stderr": _read_captured_stream(stderr_path),
                 "error": "Python execution exited without returning a result.",
             }
-
-        result = queue.get()
         result["output"] = _read_captured_stream(stdout_path)
         result["stderr"] = _read_captured_stream(stderr_path)
         return result
+    finally:
+        for path in (stdout_path, stderr_path, result_path):
+            try:
+                path.unlink()
+            except OSError:
+                pass

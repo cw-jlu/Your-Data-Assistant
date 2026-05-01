@@ -54,10 +54,47 @@ def _strip_json_fence(raw_response: str) -> str:
 
 # 将文本解析为 JSON 对象
 def _load_json_object(text: str) -> dict[str, object]:
-    payload = json.loads(text)
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        repaired = _escape_literal_newlines_in_strings(text)
+        payload = json.loads(repaired)
     if not isinstance(payload, dict):
         raise ValueError("Model response must be a JSON object.")
     return payload
+
+
+def _escape_literal_newlines_in_strings(text: str) -> str:
+    repaired: list[str] = []
+    in_string = False
+    escape = False
+    for char in text:
+        if in_string:
+            if escape:
+                repaired.append(char)
+                escape = False
+                continue
+            if char == "\\":
+                repaired.append(char)
+                escape = True
+                continue
+            if char == '"':
+                repaired.append(char)
+                in_string = False
+                continue
+            if char == "\n":
+                repaired.append("\\n")
+                continue
+            if char == "\r":
+                repaired.append("\\r")
+                continue
+            repaired.append(char)
+        else:
+            repaired.append(char)
+            if char == '"':
+                in_string = True
+                escape = False
+    return "".join(repaired)
 
 
 # 解析模型输出的一步，提取 Thought、Action 和 Action Input

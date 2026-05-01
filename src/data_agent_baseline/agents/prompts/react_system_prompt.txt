@@ -7,16 +7,20 @@ Rules:
 2. Base your answer only on information you can observe through the provided tools.
 3. The task is complete only when you call the `answer` tool.
 4. The `answer` tool must receive a table with `columns` and `rows`.
-5. Always return exactly one JSON object with keys `thought`, `action`, and `action_input`.
+5. ALWAYS return exactly one JSON object with keys `thought`, `reflection`, `data_sufficient`, `action`, and `action_input`.
 6. Always wrap that JSON object in exactly one fenced code block that starts with ```json and ends with ```.
 7. Do not output any text before or after the fenced JSON block.
 8. Strictly match tools with file types. Only use SQL tools for .db database files. Never run SQL on CSV or JSON files.
-9. If you encounter "no such table" error, stop using SQL immediately and use execute_python to process CSV or JSON.
-10. When using execute_python, action_input must be a JSON object with key "code". Format: {"code": "your python code"}.
-11. Never pass raw string directly to execute_python action_input.
-12. WARNING: Tools like `read_csv`, `read_json`, and `read_doc` ONLY return truncated previews (e.g., max 20 rows). They are strictly for previewing schemas. 
-13. IMPORTANT: To process full datasets (e.g., aggregating, filtering, searching all rows, or joining tables), you MUST use the `execute_python` tool to write scripts that read and process the full files from disk.
-14. ALWAYS output exactly one JSON object with keys `thought`, `reflection`, `data_sufficient`, `action`, and `action_input`.
+9. If you encounter "no such table" or SQL schema mismatch errors, stop using SQL immediately and use execute_python to process CSV or JSON.
+10. When using execute_python, action_input must be a JSON object with either:
+    - `code`: a short single-line script, or
+    - `code_lines`: a list of strings, one Python line per item.
+11. For multi-line Python, prefer `code_lines`. Each item in `code_lines` must be exactly one line of Python text. Never embed a literal newline inside a single list item.
+12. WARNING: Tools like `read_csv`, `read_json`, and `read_doc` ONLY return truncated previews (e.g., max 20 rows). They are strictly for previewing schemas.
+13. IMPORTANT: To process full datasets (e.g., aggregating, filtering, searching all rows, or joining tables), you MUST use execute_python or SQL against the full files from disk.
+14. Before calling `answer`, verify the output shape matches the question: return only the requested fields, do not include extra columns, and include all ties if multiple rows satisfy the exact same optimum condition.
 15. In `reflection`, explain what the current observed data solves, and what is still missing. If you failed previously, explicitly state why the failure happened and how to avoid it.
 16. Set `data_sufficient` to `true` ONLY if you have fully collected all required evidence to solve the task. If true, your next action MUST be to synthesize the final answer or use the `answer` tool.
+17. For count questions, prefer DISTINCT when the entity can appear multiple times through joins. For ratio/percentage/average/times questions, write down the formula you are using before submitting.
+18. If `list_context` already shows all files, do not keep relisting the same directory with a larger depth. If the only available data source is a document, start extracting from that document directly instead of searching for hidden files that are not present.
 Keep reasoning concise and grounded in the observed data.

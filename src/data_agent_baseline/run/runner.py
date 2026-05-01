@@ -116,7 +116,10 @@ def _run_single_task_core(
     agent = ReActAgent(
         model=model or build_model_adapter(config),
         tools=tools or create_default_tool_registry(),
-        config=ReActAgentConfig(max_steps=config.agent.max_steps),
+        config=ReActAgentConfig(
+            max_steps=config.agent.max_steps,
+            rag_top_k=config.agent.rag_top_k,
+        ),
     )
     run_result = agent.run(task, task_output_dir=task_output_dir)
     return run_result.to_dict()
@@ -263,16 +266,14 @@ def run_benchmark(
 
     task_artifacts: list[TaskRunArtifacts]
     if effective_workers == 1:
-        shared_model = model or build_model_adapter(config)
-        shared_tools = tools or create_default_tool_registry()
         task_artifacts = []
         for task_id in task_ids:
             artifact = run_single_task(
                 task_id=task_id,
                 config=config,
                 run_output_dir=run_output_dir,
-                model=shared_model,
-                tools=shared_tools,
+                model=model,
+                tools=tools,
             )
             task_artifacts.append(artifact)
             if progress_callback is not None:

@@ -34,7 +34,7 @@ class AgentConfig:
     max_steps: int = 35
     temperature: float = 0.0
     max_tokens: int | None = 8192
-    rag_top_k: int = 5  # PageRAG/GraphRAG 检索返回的最大分块数
+    rag_top_k: int = 30  # PageRAG/GraphRAG 检索返回的最大分块数
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +42,7 @@ class RunConfig:
     output_dir: Path = field(default_factory=_default_run_output_dir)
     run_id: str | None = None
     max_workers: int = 4
-    task_timeout_seconds: int = 600
+    task_timeout_seconds: int = 1200
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from data_agent_baseline.benchmark.schema import AnswerTable, PublicTask
+from data_agent_baseline.tools.answer_normalizer import normalize_answer, validate_answer_shape
 from data_agent_baseline.tools.filesystem import (
     list_context_tree,
     read_csv_preview,
@@ -74,7 +75,15 @@ def _execute_context_sql(task: PublicTask, action_input: dict[str, Any]) -> Tool
 
 
 def _execute_python(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
-    code = str(action_input["code"])
+    if "code_lines" in action_input:
+        code_lines = action_input["code_lines"]
+        if not isinstance(code_lines, list) or not all(isinstance(line, str) for line in code_lines):
+            raise ValueError("execute_python.code_lines must be a list of strings.")
+        code = "\n".join(code_lines)
+    elif "code" in action_input:
+        code = str(action_input["code"])
+    else:
+        raise ValueError("execute_python requires either `code` or `code_lines`.")
     content = execute_python_code(
         context_root=task.context_dir,
         code=code,
@@ -83,7 +92,7 @@ def _execute_python(task: PublicTask, action_input: dict[str, Any]) -> ToolExecu
     return ToolExecutionResult(ok=bool(content.get("success")), content=content)
 
 
-def _answer(_: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
+def _answer(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
     columns = action_input.get("columns")
     rows = action_input.get("rows")
     if not isinstance(columns, list) or not columns or not all(isinstance(item, str) for item in columns):
@@ -99,13 +108,17 @@ def _answer(_: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
             raise ValueError("Each answer row must match the number of columns.")
         normalized_rows.append(list(row))
 
-    answer = AnswerTable(columns=list(columns), rows=normalized_rows)
+    normalized = normalize_answer(task, list(columns), normalized_rows)
+    validate_answer_shape(task, normalized.columns, normalized.rows)
+
+    answer = AnswerTable(columns=normalized.columns, rows=normalized.rows)
     return ToolExecutionResult(
         ok=True,
         content={
             "status": "submitted",
-            "column_count": len(columns),
-            "row_count": len(normalized_rows),
+            "column_count": len(answer.columns),
+            "row_count": len(answer.rows),
+            "normalization_notes": normalized.notes,
         },
         is_terminal=True,
         answer=answer,
@@ -151,12 +164,16 @@ def create_default_tool_registry() -> ToolRegistry:
             description=(
                 "Execute arbitrary Python code with the task context directory as the "
                 "working directory. The tool returns the code's captured stdout as `output`. "
+                "To avoid JSON parse failures, prefer `code_lines` for multi-line scripts and `code` for short one-liners. "
                 "PERFORMANCE TIP: For large files (over 1MB), use `pandas` for vectorized operations "
                 "instead of `csv.DictReader` to avoid timeouts. "
                 f"The execution timeout is fixed at {EXECUTE_PYTHON_TIMEOUT_SECONDS} seconds."
             ),
             input_schema={
-                "code": "import os\nprint(sorted(os.listdir('.')))",
+                "code_lines": [
+                    "import os",
+                    "print(sorted(os.listdir('.')))",
+                ],
             },
         ),
         "inspect_sqlite_schema": ToolSpec(

@@ -88,7 +88,7 @@ class OpenAIModelAdapter:
             import logging
             logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
             from sentence_transformers import SentenceTransformer
-            self._local_embedder = SentenceTransformer(self.embedding_model)
+            self._local_embedder = SentenceTransformer(self.embedding_model, local_files_only=True)
 
         try:
             safe_texts = [t.strip()[:2000] for t in texts]
