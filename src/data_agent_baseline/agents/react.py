@@ -17,7 +17,7 @@ from data_agent_baseline.agents.prompt import (
 )
 from data_agent_baseline.agents.runtime import AgentRunResult, AgentRuntimeState, StepRecord
 from data_agent_baseline.benchmark.schema import PublicTask
-from data_agent_baseline.tools.registry import ToolRegistry, ToolExecutionResult
+from data_agent_baseline.tools.registry import ToolRegistry
 
 # 定义 ReAct Agent 的配置
 @dataclass(frozen=True, slots=True)
@@ -179,11 +179,14 @@ class ReActAgent:
         # 2. 获取文档目录与相关页 (PageRAG v2.1: 标题向量化级联检索)
         pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k, model=self.model)
         doc_catalog = pagerag.get_catalog()
+        retrieved_pages = pagerag.retrieve(task.question)
         
         # 合并路线图
         data_roadmap = kg_roadmap
         if doc_catalog:
             data_roadmap += "\n" + doc_catalog
+        if retrieved_pages:
+            data_roadmap += "\n" + retrieved_pages
             
         _log(f"Hybrid Navigator (KG v2 + PageRAG v2.1, Top-K={self.config.rag_top_k}) initialized.")
         
@@ -243,18 +246,7 @@ class ReActAgent:
                     break
 
             try:
-                is_read_doc = model_step.action == "read_doc"
-                doc_path = str(model_step.action_input.get("path", "")).lower()
-                
-                if is_read_doc and doc_path.endswith(".md") and not doc_path.endswith("knowledge.md"):
-                    _log(f"Dynamic RAG triggered for: {doc_path}")
-                    retrieved_pages = pagerag.retrieve(task.question)
-                    tool_result = ToolExecutionResult(
-                        ok=True, 
-                        content={"retrieved_segments": retrieved_pages or "No relevant sections found."}
-                    )
-                else:
-                    tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
+                tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
                 
                 # 如果报错，加入反思提醒
                 obs_error = ""
