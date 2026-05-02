@@ -35,6 +35,11 @@ class AgentConfig:
     temperature: float = 0.0
     max_tokens: int | None = 8192
     rag_top_k: int = 30  # PageRAG/GraphRAG 检索返回的最大分块数
+    
+    python_timeout: int = 30
+    max_repeated_actions: int = 3
+    error_reflection_threshold: int = 3
+    max_consecutive_errors: int = 6
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +88,10 @@ def load_app_config(config_path: Path) -> AppConfig:
         temperature=float(agent_payload.get("temperature", agent_defaults.temperature)),
         max_tokens=agent_payload.get("max_tokens", agent_defaults.max_tokens),
         rag_top_k=int(agent_payload.get("rag_top_k", agent_defaults.rag_top_k)),
+        python_timeout=int(agent_payload.get("python_timeout", agent_defaults.python_timeout)),
+        max_repeated_actions=int(agent_payload.get("max_repeated_actions", agent_defaults.max_repeated_actions)),
+        error_reflection_threshold=int(agent_payload.get("error_reflection_threshold", agent_defaults.error_reflection_threshold)),
+        max_consecutive_errors=int(agent_payload.get("max_consecutive_errors", agent_defaults.max_consecutive_errors)),
     )
     raw_run_id = run_payload.get("run_id")
     run_id = run_defaults.run_id

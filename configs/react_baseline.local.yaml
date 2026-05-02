@@ -8,9 +8,13 @@ agent:
   max_steps: 35
   temperature: 0.0
   max_tokens: 8192
+  # --- 新增参数 ---
+  python_timeout: 60              # Python 脚本执行超时 (秒)
+  max_repeated_actions: 3         # 死循环检测阈值
+  error_reflection_threshold: 3   # 触发反思的连续错误数
+  max_consecutive_errors: 6       # 熔断阈值
 
 run:
   output_dir: artifacts/runs
-
   max_workers: 4
   task_timeout_seconds: 1800

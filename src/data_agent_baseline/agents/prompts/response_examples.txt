@@ -1,19 +1,58 @@
-Example response when you need to inspect the context:
+### Example: Full Search & Multi-row Answer
 ```json
-{"thought":"I should inspect the available files first.","reflection":"No data collected yet. I need to see what files exist to start planning.","data_sufficient":false,"action":"list_context","action_input":{"max_depth":4}}
+{
+  "thought": "I need to find all drivers with a Q3 time around 1:54. I will search the entire qualifying dataset to ensure no matches are missed.",
+  "reflection": "I will include all ties/matches as per Rule 1. Filtering with pandas to handle all rows efficiently.",
+  "data_sufficient": false,
+  "action": "execute_python",
+  "action_input": {
+    "code_lines": [
+      "import pandas as pd",
+      "df = pd.read_csv('csv/qualifying.csv')",
+      "matches = df[df['q3'].str.contains('1:54', na=False)]",
+      "print(matches[['driverId', 'number']])"
+    ]
+  }
+}
 ```
 
-Example response when you have the final answer:
+### Example: Formula Derivation from Knowledge.md
 ```json
-{"thought":"I have the final result table.","reflection":"I have successfully extracted the average long shots and verified the calculation.","data_sufficient":true,"action":"answer","action_input":{"columns":["average_long_shots"],"rows":[["63.5"]]}}
+{
+  "thought": "The question asks for average monthly consumption. Based on knowledge.md, the formula is Total Annual Consumption / 12.",
+  "reflection": "I verified the formula in knowledge.md. I will sum all SME consumption in 2013 and divide by 12.",
+  "data_sufficient": false,
+  "action": "execute_python",
+  "action_input": {
+    "code_lines": [
+      "import pandas as pd",
+      "df = pd.read_csv('csv/yearmonth.csv')",
+      "sme_2013 = df[(df['Segment'] == 'SME') & (df['Date'].astype(str).str.startswith('2013'))]",
+      "avg_monthly = sme_2013['Consumption'].sum() / 12",
+      "print(f'Result: {avg_monthly}')"
+    ]
+  }
+}
 ```
 
-Example for checking business rules:
+### Example: Type-Safe Join
 ```json
-{"thought":"I should check the full business rules to ensure I use the correct formulas and join keys.","reflection":"The roadmap summary is helpful, but I need the full logic from knowledge.md for precision.","data_sufficient":false,"action":"read_doc","action_input":{"path":"knowledge.md"}}
-```
-
-Example for valid execute_python call with escaped newlines:
-```json
-{"thought":"Filter and aggregate data using Python.","reflection":"I will use escaped newlines to ensure JSON validity.","data_sufficient":false,"action":"execute_python","action_input":{"code":"import pandas as pd\ndf = pd.read_csv('csv/data.csv')\nprint(df.head())"}}
+{
+  "thought": "I need to join members with zip codes. I will convert both join keys to strings to ensure a successful merge.",
+  "reflection": "Previous attempts failed due to type mismatch (int vs str). Aligning types with .astype(str) now.",
+  "data_sufficient": false,
+  "action": "execute_python",
+  "action_input": {
+    "code_lines": [
+      "import pandas as pd",
+      "import json",
+      "m = pd.read_csv('csv/member.csv')",
+      "with open('json/zip.json', 'r') as f: z = pd.DataFrame(json.load(f)['records'])",
+      "m['zip_str'] = m['zip'].astype(str)",
+      "z['zip_str'] = z['zip_code'].astype(str)",
+      "res = m.merge(z, on='zip_str')",
+      "print(res[['first_name', 'last_name', 'state']])"
+    ]
+  }
+}
 ```

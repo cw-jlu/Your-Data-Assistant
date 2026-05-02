@@ -18,8 +18,6 @@ from data_agent_baseline.tools.filesystem import (
 from data_agent_baseline.tools.python_exec import execute_python_code
 from data_agent_baseline.tools.sqlite import execute_read_only_sql, inspect_sqlite_schema
 
-EXECUTE_PYTHON_TIMEOUT_SECONDS = 30
-
 
 @dataclass(frozen=True, slots=True)
 class ToolSpec:
@@ -74,7 +72,7 @@ def _execute_context_sql(task: PublicTask, action_input: dict[str, Any]) -> Tool
     return ToolExecutionResult(ok=True, content=execute_read_only_sql(path, sql, limit=limit))
 
 
-def _execute_python(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
+def _execute_python(task: PublicTask, action_input: dict[str, Any], timeout_seconds: int = 30) -> ToolExecutionResult:
     if "code_lines" in action_input:
         code_lines = action_input["code_lines"]
         if not isinstance(code_lines, list) or not all(isinstance(line, str) for line in code_lines):
@@ -87,7 +85,7 @@ def _execute_python(task: PublicTask, action_input: dict[str, Any]) -> ToolExecu
     content = execute_python_code(
         context_root=task.context_dir,
         code=code,
-        timeout_seconds=EXECUTE_PYTHON_TIMEOUT_SECONDS,
+        timeout_seconds=timeout_seconds,
     )
     return ToolExecutionResult(ok=bool(content.get("success")), content=content)
 
@@ -144,7 +142,7 @@ class ToolRegistry:
         return self.handlers[action](task, action_input)
 
 
-def create_default_tool_registry() -> ToolRegistry:
+def create_default_tool_registry(python_timeout: int = 30) -> ToolRegistry:
     specs = {
         "answer": ToolSpec(
             name="answer",
@@ -167,7 +165,7 @@ def create_default_tool_registry() -> ToolRegistry:
                 "To avoid JSON parse failures, prefer `code_lines` for multi-line scripts and `code` for short one-liners. "
                 "PERFORMANCE TIP: For large files (over 1MB), use `pandas` for vectorized operations "
                 "instead of `csv.DictReader` to avoid timeouts. "
-                f"The execution timeout is fixed at {EXECUTE_PYTHON_TIMEOUT_SECONDS} seconds."
+                f"The execution timeout is fixed at {python_timeout} seconds."
             ),
             input_schema={
                 "code_lines": [
@@ -209,7 +207,7 @@ def create_default_tool_registry() -> ToolRegistry:
     handlers = {
         "answer": _answer,
         "execute_context_sql": _execute_context_sql,
-        "execute_python": _execute_python,
+        "execute_python": lambda task, inp: _execute_python(task, inp, timeout_seconds=python_timeout),
         "inspect_sqlite_schema": _inspect_sqlite_schema,
         "list_context": _list_context,
         "read_csv": _read_csv,
