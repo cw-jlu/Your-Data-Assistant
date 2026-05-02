@@ -219,14 +219,25 @@ class ReActAgent:
         from data_agent_baseline.agents.db_navigator import get_data_roadmap
         from data_agent_baseline.agents.pagerag import PageRAGNavigator
         
-        # 1. 获取全局结构图谱 (KG v2: JSON Roadmap)
-        data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
+        # 根据难度采取不同策略：Easy 任务使用精简 Roadmap 避免信息过载
+        if task.difficulty == "easy":
+            from data_agent_baseline.tools.filesystem import list_context_tree
+            context_tree = list_context_tree(task, max_depth=2)
+            data_roadmap = (
+                "=== DATA ROADMAP (SIMPLIFIED) ===\n"
+                "This is an easy task. Only basic file listing is provided to save tokens.\n"
+                f"{json.dumps(context_tree, indent=2, ensure_ascii=False)}"
+            )
+            _log("Strategy: Easy task detected. Using simplified roadmap.")
+        else:
+            # 1. 获取全局结构图谱 (KG v2: JSON Roadmap)
+            data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
+            _log("Strategy: Medium/Hard task detected. Using full JSON-KG roadmap.")
         
         # 2. 初始化 PageRAG (仅用于拦截读取文档时的按需检索)
         pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k, model=self.model)
         
-        _log(f"Hybrid Navigator (JSON KG + PageRAG On-Demand) initialized.")
-        _log(f"Data Roadmap:\n{data_roadmap}")
+        _log(f"Hybrid Navigator (Roadmap + PageRAG On-Demand) initialized.")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0

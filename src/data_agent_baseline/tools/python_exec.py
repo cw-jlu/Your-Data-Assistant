@@ -1,13 +1,11 @@
 """
 此模块提供 Python 代码执行工具，允许 Agent 在任务上下文中运行自定义数据处理逻辑。
+改用 subprocess 并通过临时文件传递代码，彻底解决转义和稳定性问题。
 """
 from __future__ import annotations
 
-import contextlib
-import io
-import json
-import multiprocessing
 import os
+import subprocess
 import sys
 import traceback
 import uuid
@@ -15,155 +13,106 @@ from pathlib import Path
 from typing import Any
 
 
-@contextlib.contextmanager
-def _capture_process_streams(stdout_path: Path, stderr_path: Path):
-    original_stdout = sys.stdout
-    original_stderr = sys.stderr
-    saved_stdout_fd = os.dup(1)
-    saved_stderr_fd = os.dup(2)
-
-    with stdout_path.open("w+b") as stdout_file, stderr_path.open("w+b") as stderr_file:
-        try:
-            if original_stdout is not None:
-                original_stdout.flush()
-            if original_stderr is not None:
-                original_stderr.flush()
-
-            os.dup2(stdout_file.fileno(), 1)
-            os.dup2(stderr_file.fileno(), 2)
-
-            stdout_encoding = getattr(original_stdout, "encoding", None) or "utf-8"
-            stderr_encoding = getattr(original_stderr, "encoding", None) or "utf-8"
-
-            sys.stdout = io.TextIOWrapper(
-                os.fdopen(os.dup(1), "wb"),
-                encoding="utf-8",
-                errors="replace",
-                line_buffering=True,
-                write_through=True,
-            )
-            sys.stderr = io.TextIOWrapper(
-                os.fdopen(os.dup(2), "wb"),
-                encoding="utf-8",
-                errors="replace",
-                line_buffering=True,
-                write_through=True,
-            )
-            yield
-        finally:
-            if sys.stdout is not None:
-                sys.stdout.flush()
-            if sys.stderr is not None:
-                sys.stderr.flush()
-
-            if sys.stdout is not original_stdout:
-                sys.stdout.close()
-            if sys.stderr is not original_stderr:
-                sys.stderr.close()
-
-            sys.stdout = original_stdout
-            sys.stderr = original_stderr
-            os.dup2(saved_stdout_fd, 1)
-            os.dup2(saved_stderr_fd, 2)
-            os.close(saved_stdout_fd)
-            os.close(saved_stderr_fd)
-
-
-def _read_captured_stream(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
-
-
-def _run_python_code(
-    context_root: str,
-    code: str,
-    stdout_path: str,
-    stderr_path: str,
-    result_path: str,
-) -> None:
-    namespace: dict[str, Any] = {
-        "__builtins__": __builtins__,
-        "__name__": "__main__",
-        "context_root": context_root,
-        "Path": Path,
-    }
-    resolved_stdout_path = Path(stdout_path)
-    resolved_stderr_path = Path(stderr_path)
-    resolved_result_path = Path(result_path)
-
-    try:
-        os.chdir(context_root)
-        with _capture_process_streams(resolved_stdout_path, resolved_stderr_path):
-            exec(code, namespace, namespace)
-        resolved_result_path.write_text(json.dumps({"success": True}), encoding="utf-8")
-    except BaseException as exc:  # noqa: BLE001
-        resolved_result_path.write_text(
-            json.dumps(
-                {
-                    "success": False,
-                    "error": str(exc),
-                    "traceback": traceback.format_exc(),
-                }
-            ),
-            encoding="utf-8",
-        )
-
-
 def execute_python_code(context_root: Path, code: str, *, timeout_seconds: int = 30) -> dict[str, Any]:
+    """
+    通过 subprocess 在独立进程中执行 Python 代码。
+    代码通过独立的 .py 文件传递，避免 repr() 或 json 带来的转义困扰。
+    """
     resolved_context_root = context_root.resolve()
     scratch_root = Path.cwd() / "scratch" / "execute_python"
     scratch_root.mkdir(parents=True, exist_ok=True)
+    
     run_id = uuid.uuid4().hex
-    stdout_path = scratch_root / f"{run_id}.stdout.txt"
-    stderr_path = scratch_root / f"{run_id}.stderr.txt"
-    result_path = scratch_root / f"{run_id}.result.json"
+    
+    # 1. 代理代码文件：存放 Agent 编写的原始代码
+    agent_code_path = scratch_root / f"{run_id}_agent.py"
+    # 2. 包装脚本文件：负责环境准备、目录切换和执行代理代码
+    wrapper_path = scratch_root / f"{run_id}_wrapper.py"
+    
+    wrapper_code = f"""
+import os
+import sys
+import traceback
+from pathlib import Path
+
+context_root = Path({repr(resolved_context_root.as_posix())})
+agent_code_file = Path({repr(agent_code_path.as_posix())})
+
+# 切换到任务上下文目录
+os.chdir(context_root)
+
+# 准备执行命名空间
+namespace = {{
+    "__builtins__": __builtins__,
+    "__name__": "__main__",
+    "context_root": context_root,
+    "Path": Path,
+}}
+
+try:
+    import pandas as pd
+    namespace["pd"] = pd
+except ImportError:
+    pass
+
+try:
+    # 直接读取并执行原始代码文件，不经过任何中间转义
+    with open(agent_code_file, "r", encoding="utf-8") as f:
+        exec(f.read(), namespace, namespace)
+except BaseException:
+    print(traceback.format_exc(), file=sys.stderr)
+    sys.exit(1)
+"""
+
     try:
-        stdout_path.write_text("", encoding="utf-8")
-        stderr_path.write_text("", encoding="utf-8")
-        result_path.write_text("", encoding="utf-8")
-        process = multiprocessing.Process(
-            target=_run_python_code,
-            args=(
-                resolved_context_root.as_posix(),
-                code,
-                stdout_path.as_posix(),
-                stderr_path.as_posix(),
-                result_path.as_posix(),
-            ),
+        # 写入代码文件
+        agent_code_path.write_text(code, encoding="utf-8")
+        wrapper_path.write_text(wrapper_code, encoding="utf-8")
+        
+        # 执行子进程
+        result = subprocess.run(
+            [sys.executable, str(wrapper_path)],
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            encoding="utf-8",
+            errors="replace",
         )
-        process.start()
-        process.join(timeout_seconds)
-
-        if process.is_alive():
-            process.terminate()
-            process.join(timeout=1.0)
-            if process.is_alive():
-                process.kill()
-                process.join(timeout=1.0)
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "output": result.stdout,
+                "stderr": result.stderr,
+            }
+        else:
             return {
                 "success": False,
-                "output": _read_captured_stream(stdout_path),
-                "stderr": _read_captured_stream(stderr_path),
-                "error": f"Python execution timed out after {timeout_seconds} seconds.",
+                "output": result.stdout,
+                "stderr": result.stderr,
+                "error": "Python execution failed. See stderr for traceback.",
             }
 
-        try:
-            result = json.loads(result_path.read_text(encoding="utf-8") or "{}")
-        except json.JSONDecodeError:
-            result = {}
-
-        if not result:
-            return {
-                "success": False,
-                "output": _read_captured_stream(stdout_path),
-                "stderr": _read_captured_stream(stderr_path),
-                "error": "Python execution exited without returning a result.",
-            }
-        result["output"] = _read_captured_stream(stdout_path)
-        result["stderr"] = _read_captured_stream(stderr_path)
-        return result
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "success": False,
+            "output": exc.stdout if isinstance(exc.stdout, str) else (exc.stdout.decode("utf-8", "replace") if exc.stdout else ""),
+            "stderr": exc.stderr if isinstance(exc.stderr, str) else (exc.stderr.decode("utf-8", "replace") if exc.stderr else ""),
+            "error": f"Python execution timed out after {timeout_seconds} seconds.",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "output": "",
+            "stderr": "",
+            "error": f"Unexpected error during execution: {str(exc)}",
+            "traceback": traceback.format_exc(),
+        }
     finally:
-        for path in (stdout_path, stderr_path, result_path):
-            try:
-                path.unlink()
-            except OSError:
-                pass
+        # 清理临时文件
+        for p in [agent_code_path, wrapper_path]:
+            if p.exists():
+                try:
+                    p.unlink()
+                except OSError:
+                    pass
