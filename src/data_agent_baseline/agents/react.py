@@ -150,7 +150,47 @@ class ReActAgent:
         )
         messages = [ModelMessage(role="system", content=system_content)]
         messages.append(ModelMessage(role="user", content=build_task_prompt(task)))
-        for step in state.steps:
+        
+        # 历史压缩逻辑：对于连续的失败步骤，只保留最后一个（通常包含最新的错误信息）
+        compact_steps = []
+        i = 0
+        while i < len(state.steps):
+            step = state.steps[i]
+            if not step.ok:
+                # 寻找连续失败的终点
+                j = i
+                while j < len(state.steps) and not state.steps[j].ok:
+                    j += 1
+                
+                # 如果有连续失败
+                if j > i + 1:
+                    failure_count = j - i
+                    last_failure = state.steps[j-1]
+                    
+                    # 重新构建 raw_response 以注入压缩标记
+                    try:
+                        payload = json.loads(_strip_json_fence(last_failure.raw_response))
+                        payload["thought"] = f"[System: {failure_count-1} previous failed attempts omitted] " + payload.get("thought", "")
+                        new_raw = f"```json\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n```"
+                    except Exception:
+                        new_raw = last_failure.raw_response
+
+                    from data_agent_baseline.agents.runtime import StepRecord
+                    step = StepRecord(
+                        step_index=last_failure.step_index,
+                        thought=last_failure.thought,
+                        action=last_failure.action,
+                        action_input=last_failure.action_input,
+                        raw_response=new_raw, # 使用注入了标记的新字符串
+                        observation=last_failure.observation,
+                        ok=False
+                    )
+                i = j # 跳到成功步骤或列表末尾
+            else:
+                i += 1
+            compact_steps.append(step)
+
+        for step in compact_steps:
             messages.append(ModelMessage(role="assistant", content=step.raw_response))
             messages.append(
                 ModelMessage(role="user", content=build_observation_prompt(step.observation))
@@ -173,19 +213,14 @@ class ReActAgent:
         from data_agent_baseline.agents.db_navigator import get_data_roadmap
         from data_agent_baseline.agents.pagerag import PageRAGNavigator
         
-        # 1. 获取全局结构图谱 (KG v2: 包含 FK、样本、LLM 文档语义)
-        kg_roadmap = get_data_roadmap(task.context_dir, model=self.model)
+        # 1. 获取全局结构图谱 (KG v2: JSON Roadmap)
+        data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
         
-        # 2. 获取文档目录 (Catalog only, 按需 RAG)
+        # 2. 初始化 PageRAG (仅用于拦截读取文档时的按需检索)
         pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k, model=self.model)
-        doc_catalog = pagerag.get_catalog()
         
-        # 合并路线图 (只含目录，不含检索片段)
-        data_roadmap = kg_roadmap
-        if doc_catalog:
-            data_roadmap += "\n" + doc_catalog
-            
-        _log(f"Hybrid Navigator (KG v2 + PageRAG v2.2, On-Demand RAG) initialized.")
+        _log(f"Hybrid Navigator (JSON KG + PageRAG On-Demand) initialized.")
+        _log(f"Data Roadmap:\n{data_roadmap}")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
@@ -265,13 +300,15 @@ class ReActAgent:
                 else:
                     consecutive_errors = 0 # 只要有一次成功，就重置连续错误计数
                 
-                observation = {
-                    "ok": tool_result.ok,
-                    "tool": model_step.action,
-                    "content": tool_result.content,
-                }
-                if not tool_result.ok:
-                    observation["error_hint"] = obs_error # 注入反思消息
+                # 记录观察结果 (简化版以节省 Token)
+                if tool_result.ok:
+                    observation = tool_result.content
+                else:
+                    observation = {
+                        "status": "failed",
+                        "error": tool_result.content.get("error", "Unknown tool error"),
+                        "reflection_hint": obs_error
+                    }
 
                 _log(f"Tool Result ({model_step.action}):\n{json.dumps(observation, ensure_ascii=False, indent=2)}")
                 

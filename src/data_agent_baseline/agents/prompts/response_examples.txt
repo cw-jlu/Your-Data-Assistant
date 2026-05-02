@@ -8,7 +8,12 @@ Example response when you have the final answer:
 {"thought":"I have the final result table.","reflection":"I have successfully extracted the average long shots and verified the calculation.","data_sufficient":true,"action":"answer","action_input":{"columns":["average_long_shots"],"rows":[["63.5"]]}}
 ```
 
-Example for valid execute_python call:
+Example for checking business rules:
 ```json
-{"thought":"Analyze and filter csv data","reflection":"I need the full file rather than the preview, so I will run a compact script over the entire dataset.","data_sufficient":false,"action":"execute_python","action_input":{"code_lines":["import csv","with open('csv/expense.csv','r',encoding='utf-8') as f:","    reader = csv.DictReader(f)","    print(next(reader))"]}}
+{"thought":"I should check the full business rules to ensure I use the correct formulas and join keys.","reflection":"The roadmap summary is helpful, but I need the full logic from knowledge.md for precision.","data_sufficient":false,"action":"read_doc","action_input":{"path":"knowledge.md"}}
+```
+
+Example for valid execute_python call with escaped newlines:
+```json
+{"thought":"Filter and aggregate data using Python.","reflection":"I will use escaped newlines to ensure JSON validity.","data_sufficient":false,"action":"execute_python","action_input":{"code":"import pandas as pd\ndf = pd.read_csv('csv/data.csv')\nprint(df.head())"}}
 ```

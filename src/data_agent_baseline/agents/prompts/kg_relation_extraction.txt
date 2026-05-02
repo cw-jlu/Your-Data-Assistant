@@ -1,0 +1,39 @@
+Task: You are a senior data architect. Analyze the provided business knowledge document and extract all DATA RELATIONSHIPS and BUSINESS RULES.
+
+1. DATA RELATIONSHIPS:
+   - Identify all implicit joins, primary keys, or foreign key-like mappings that are NOT explicitly defined in the database schema but mentioned in the text.
+   - Format: [Source_Table.Column -> Target_Table.Column]
+
+2. BUSINESS RULES:
+   - Identify critical categorical mappings (e.g., code 1 = 'Active').
+   - Identify business formulas and calculation logic.
+   - Identify critical filters or thresholds.
+
+=== EXAMPLES ===
+Input Text: "The patient's ID in the examination records (exams.db) corresponds to the 'pid' in the master patient file (patients.csv). Severity level 1 is considered 'Critical' and level 2 is 'Severe'."
+Output:
+RELATIONS:
+- [exams.db.ID -> patients.csv.pid]
+RULES:
+- Level 1 = Critical, Level 2 = Severe (Severity mapping)
+
+Input Text: "To calculate total_cost, multiply the quantity by the unit_price found in the catalog. Filter out any records where status is 'cancelled'."
+Output:
+RELATIONS:
+- [orders.product_id -> catalog.id]
+RULES:
+- total_cost = quantity * unit_price
+- Filter: status != 'cancelled'
+=== END OF EXAMPLES ===
+
+Output strictly in the following structure:
+RELATIONS:
+- [Source -> Target]
+- ...
+
+RULES:
+- [Rule description]
+- ...
+
+Document Content:
+{text}

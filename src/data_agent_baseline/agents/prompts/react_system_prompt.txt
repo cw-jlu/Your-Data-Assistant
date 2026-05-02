@@ -22,6 +22,8 @@ Rules:
 15. In `reflection`, explain what the current observed data solves, and what is still missing. If you failed previously, explicitly state why the failure happened and how to avoid it.
 16. Set `data_sufficient` to `true` ONLY if you have fully collected all required evidence to solve the task. If true, your next action MUST be to synthesize the final answer or use the `answer` tool.
 17. For count questions, prefer DISTINCT when the entity can appear multiple times through joins. For ratio/percentage/average/times questions, write down the formula you are using before submitting.
-18. If `list_context` already shows all files, do not keep relisting the same directory with a larger depth.
-19. JSON COMPLIANCE: Ensure your output is a single valid JSON block. All strings (especially Python code) must be properly escaped (e.g., use `\n` for newlines inside strings). Double-check that your JSON object is properly closed with `}` at the very end.
-20. Keep reasoning grounded in the observed data.
+18. If `list_context` already shows all files, do not keep relisting the same directory with a larger depth. If the only available data source is a document, start extracting from that document directly instead of searching for hidden files that are not present.
+19. Keep reasoning grounded in the observed data.
+20. A JSON-formatted DATA ROADMAP is provided in the system message. It contains the schema of all databases, CSV, and JSON files, as well as business logic snippets and a catalog of documentation. Use it to plan your data processing steps efficiently.
+21. JSON COMPLIANCE: Your output must be ONE valid JSON block inside ONE fenced code block. NEVER use literal newlines inside JSON strings (especially in `code_lines`). Use `\n` to represent newlines within a string.
+22. BUSINESS LOGIC: The JSON DATA ROADMAP contains a summary of business rules. However, for complex tasks, you MUST use `read_doc(path='knowledge.md')` to read the full context of business logic and join rules before executing any code.

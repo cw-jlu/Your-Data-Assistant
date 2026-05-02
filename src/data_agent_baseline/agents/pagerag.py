@@ -104,32 +104,19 @@ class PageRAGNavigator:
             self._index_documents()
 
     def _index_documents(self):
-        """并行扫描文档，生成摘要（使用外部 Prompt）并向量化标题。"""
+        """并行扫描文档并向量化标题。"""
         doc_files = sorted(self.doc_dir.rglob("*.md"))
         if not doc_files: return
-
-        # 加载摘要 Prompt
-        prompt_tpl_path = Path(__file__).parent / "prompts" / "doc_summary_prompt.txt"
-        prompt_tpl = prompt_tpl_path.read_text(encoding="utf-8") if prompt_tpl_path.exists() else "Summarize:\n{text}"
 
         def process_doc(fpath):
             try:
                 text = fpath.read_text(encoding="utf-8", errors="replace")
                 rel = str(fpath.relative_to(self.context_dir))
-                
-                # 独立调用 Agent 生成摘要
-                summary = f"Documentation file: {fpath.name}"
-                if self.model and len(text) > 50:
-                    try:
-                        p = prompt_tpl.format(text=text[:4000])
-                        summary = self.model.complete([ModelMessage(role="user", content=p)]).strip()
-                    except Exception: pass
-                
                 chunks = _chunk_document(text, rel)
-                return {"source": rel, "summary": summary, "chunks": chunks}
+                return {"source": rel, "chunks": chunks}
             except Exception: return None
 
-        # 并行化生成摘要
+        # 并行化处理文档
         with ThreadPoolExecutor(max_workers=5) as executor:
             results = list(executor.map(process_doc, doc_files))
             for res in results:
