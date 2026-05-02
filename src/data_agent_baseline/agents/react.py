@@ -151,7 +151,7 @@ class ReActAgent:
         messages = [ModelMessage(role="system", content=system_content)]
         messages.append(ModelMessage(role="user", content=build_task_prompt(task)))
         
-        # 历史压缩逻辑：对于连续的失败步骤，只保留最后一个（通常包含最新的错误信息）
+        # 历史压缩逻辑：仅压缩“已经结束”的失败序列（即后面跟了成功步骤的）
         compact_steps = []
         i = 0
         while i < len(state.steps):
@@ -162,15 +162,15 @@ class ReActAgent:
                 while j < len(state.steps) and not state.steps[j].ok:
                     j += 1
                 
-                # 如果有连续失败
-                if j > i + 1:
+                # 策略调整：只有当这串失败“尘埃落定”（即后面出现了成功步骤 j < len）时，才进行折叠
+                # 如果当前还在持续失败（j == len），则保留全部细节供 Agent 调试
+                if j > i + 1 and j < len(state.steps):
                     failure_count = j - i
                     last_failure = state.steps[j-1]
                     
-                    # 重新构建 raw_response 以注入压缩标记
                     try:
                         payload = json.loads(_strip_json_fence(last_failure.raw_response))
-                        payload["thought"] = f"[System: {failure_count-1} previous failed attempts omitted] " + payload.get("thought", "")
+                        payload["thought"] = f"[System: {failure_count-1} previous failed attempts omitted after this point was reached] " + payload.get("thought", "")
                         new_raw = f"```json\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n```"
                     except Exception:
                         new_raw = last_failure.raw_response
@@ -181,14 +181,20 @@ class ReActAgent:
                         thought=last_failure.thought,
                         action=last_failure.action,
                         action_input=last_failure.action_input,
-                        raw_response=new_raw, # 使用注入了标记的新字符串
+                        raw_response=new_raw,
                         observation=last_failure.observation,
                         ok=False
                     )
-                i = j # 跳到成功步骤或列表末尾
+                    compact_steps.append(step)
+                    i = j # 跳过这串失败
+                else:
+                    # 还在失败中或只有单个失败，不折叠
+                    compact_steps.append(step)
+                    i += 1
             else:
+                # 成功步骤，直接加入
+                compact_steps.append(step)
                 i += 1
-            compact_steps.append(step)
 
         for step in compact_steps:
             messages.append(ModelMessage(role="assistant", content=step.raw_response))
