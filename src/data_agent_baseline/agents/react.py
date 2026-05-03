@@ -225,20 +225,16 @@ class ReActAgent:
             context_tree = list_context_tree(task, max_depth=2)
             data_roadmap = (
                 "=== DATA ROADMAP (SIMPLIFIED) ===\n"
-                "This is an easy task. Only basic file listing is provided to save tokens.\n"
+                "This is an easy task. Only basic file listing is provided.\n"
                 f"{json.dumps(context_tree, indent=2, ensure_ascii=False)}"
             )
             _log("Strategy: Easy task detected. Using simplified roadmap.")
         else:
-            # 1. 获取全局结构图谱 (KG v2: JSON Roadmap)
+            # 1. 获取全局结构图谱 (KG v3: Schema & Relationships Only)
             data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
-            _log("Strategy: Medium/Hard task detected. Using full JSON-KG roadmap.")
+            _log("Strategy: Medium/Hard task detected. Using schema-focused roadmap.")
         
-        # 2. 初始化 PageRAG (仅用于拦截读取文档时的按需检索)
-        pagerag = PageRAGNavigator(task.context_dir, top_k=self.config.rag_top_k, model=self.model)
-        
-        _log(f"Hybrid Navigator (Roadmap + PageRAG On-Demand) initialized.")
-        
+        # 移除 PageRAG 初始化
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
         action_history: list[tuple[str, str]] = []

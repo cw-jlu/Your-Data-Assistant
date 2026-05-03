@@ -146,7 +146,10 @@ def create_default_tool_registry(python_timeout: int = 30) -> ToolRegistry:
     specs = {
         "answer": ToolSpec(
             name="answer",
-            description="Submit the final answer table. This is the only valid terminating action.",
+            description=(
+                "Submit the final answer table. This is the only valid terminating action. "
+                "CRITICAL: ONLY include columns explicitly requested. Extra columns will incur a 50% score penalty (lambda=0.5)."
+            ),
             input_schema={
                 "columns": ["column_name"],
                 "rows": [["value_1"]],

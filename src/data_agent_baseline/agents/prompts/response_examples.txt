@@ -1,58 +1,48 @@
-### Example: Full Search & Multi-row Answer
+### Example 1: Standard SQL Query (Preferred for .db files)
 ```json
 {
-  "thought": "I need to find all drivers with a Q3 time around 1:54. I will search the entire qualifying dataset to ensure no matches are missed.",
-  "reflection": "I will include all ties/matches as per Rule 1. Filtering with pandas to handle all rows efficiently.",
+  "thought": "The question asks for the total sales in 2023. I see sales data in transactions.db.",
+  "reflection": "I will use SQL to aggregate data efficiently.",
+  "data_sufficient": false,
+  "action": "execute_context_sql",
+  "action_input": {
+    "path": "db/sales.db",
+    "sql": "SELECT SUM(amount) FROM transactions WHERE date LIKE '2023%'",
+    "limit": 1
+  }
+}
+```
+
+### Example 2: Python Calculation with Logic Audit
+```json
+{
+  "thought": "Logic: Unit_Price = Price / Amount. I need to find records where Unit_Price > 29. I will use pandas to calculate this.",
+  "reflection": "I checked the column names in the roadmap. I will align types using .astype(str) before filtering.",
   "data_sufficient": false,
   "action": "execute_python",
   "action_input": {
     "code_lines": [
       "import pandas as pd",
-      "df = pd.read_csv('csv/qualifying.csv')",
-      "matches = df[df['q3'].str.contains('1:54', na=False)]",
-      "print(matches[['driverId', 'number']])"
+      "df = pd.read_csv('csv/orders.csv')",
+      "df['Price'] = df['Price'].astype(float)",
+      "df['Amount'] = df['Amount'].astype(float)",
+      "results = df[df['Price'] / df['Amount'] > 29]",
+      "print(results[['CustomerID', 'Price']])"
     ]
   }
 }
 ```
 
-### Example: Formula Derivation from Knowledge.md
+### Example 3: Precise Submission (No Extra Columns)
 ```json
 {
-  "thought": "The question asks for average monthly consumption. Based on knowledge.md, the formula is Total Annual Consumption / 12.",
-  "reflection": "I verified the formula in knowledge.md. I will sum all SME consumption in 2013 and divide by 12.",
-  "data_sufficient": false,
-  "action": "execute_python",
+  "thought": "I have the ratio 0.375 for user 24. The question only asks for the ratio.",
+  "reflection": "Rule 6: ONLY include the requested column. I will remove user_id and counts.",
+  "data_sufficient": true,
+  "action": "answer",
   "action_input": {
-    "code_lines": [
-      "import pandas as pd",
-      "df = pd.read_csv('csv/yearmonth.csv')",
-      "sme_2013 = df[(df['Segment'] == 'SME') & (df['Date'].astype(str).str.startswith('2013'))]",
-      "avg_monthly = sme_2013['Consumption'].sum() / 12",
-      "print(f'Result: {avg_monthly}')"
-    ]
-  }
-}
-```
-
-### Example: Type-Safe Join
-```json
-{
-  "thought": "I need to join members with zip codes. I will convert both join keys to strings to ensure a successful merge.",
-  "reflection": "Previous attempts failed due to type mismatch (int vs str). Aligning types with .astype(str) now.",
-  "data_sufficient": false,
-  "action": "execute_python",
-  "action_input": {
-    "code_lines": [
-      "import pandas as pd",
-      "import json",
-      "m = pd.read_csv('csv/member.csv')",
-      "with open('json/zip.json', 'r') as f: z = pd.DataFrame(json.load(f)['records'])",
-      "m['zip_str'] = m['zip'].astype(str)",
-      "z['zip_str'] = z['zip_code'].astype(str)",
-      "res = m.merge(z, on='zip_str')",
-      "print(res[['first_name', 'last_name', 'state']])"
-    ]
+    "columns": ["ratio"],
+    "rows": [["0.375"]]
   }
 }
 ```
