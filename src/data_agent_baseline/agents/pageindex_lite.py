@@ -187,7 +187,9 @@ def format_tree_for_roadmap(tree: List[Dict], indent: int = 0) -> List[str]:
 async def get_md_pageindex_summary_async(md_path: Path, model_adapter: Any = None) -> str:
     try:
         content = md_path.read_text(encoding="utf-8", errors="replace")
-        node_list, lines = extract_nodes_from_markdown(content)
+        # Disable chunking for knowledge.md so its business rules stay intact
+        chunk_lines = 999999 if md_path.name.lower() == "knowledge.md" else 150
+        node_list, lines = extract_nodes_from_markdown(content, max_chunk_lines=chunk_lines)
         nodes_with_content = extract_node_text_content(node_list, lines)
         tree = build_tree_from_nodes(nodes_with_content)
         
