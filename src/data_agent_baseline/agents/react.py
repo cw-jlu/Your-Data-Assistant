@@ -237,6 +237,9 @@ class ReActAgent:
             # 1. 获取全局结构图谱 (KG v3: Schema & Relationships Only)
             data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
             _log("Strategy: Medium task detected. Using schema-focused roadmap.")
+            
+        # [DEBUG ENHANCEMENT] Print the fully assembled roadmap to the log
+        _log(f"\n--- [DEBUG] ASSEMBLED DATA ROADMAP ---\n{data_roadmap}\n--------------------------------------\n")
         
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
