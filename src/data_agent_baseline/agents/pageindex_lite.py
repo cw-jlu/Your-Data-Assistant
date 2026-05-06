@@ -56,25 +56,38 @@ def extract_nodes_from_markdown(markdown_content: str, max_chunk_lines: int = 15
         if node_len > max_chunk_lines * 2:
             if node['is_header']:
                 final_nodes.append(node)
-                for start in range(node['line_num'] + 1, node['end_line'] + 1, max_chunk_lines):
-                    end = min(start + max_chunk_lines - 1, node['end_line'])
-                    final_nodes.append({
-                        'title': f"Content Section ({start}-{end})",
-                        'line_num': start,
-                        'end_line': end,
-                        'level': node['level'] + 1,
-                        'is_header': False
-                    })
-            else:
-                for start in range(node['line_num'], node['end_line'] + 1, max_chunk_lines):
-                    end = min(start + max_chunk_lines - 1, node['end_line'])
-                    final_nodes.append({
-                        'title': f"Text Chunk ({start}-{end})",
-                        'line_num': start,
-                        'end_line': end,
-                        'level': node['level'],
-                        'is_header': False
-                    })
+            
+            start_line = node['line_num'] + 1 if node['is_header'] else node['line_num']
+            while start_line <= node['end_line']:
+                expected_end = min(start_line + max_chunk_lines - 1, node['end_line'])
+                actual_end = expected_end
+                
+                # Search for a clean paragraph break (empty line) near the expected end
+                if expected_end < node['end_line']:
+                    found_break = False
+                    # Look backward up to 50 lines
+                    for offset in range(0, min(50, expected_end - start_line)):
+                        if not lines[expected_end - 1 - offset].strip():
+                            actual_end = expected_end - offset
+                            found_break = True
+                            break
+                    # If not found, look forward up to 50 lines
+                    if not found_break:
+                        for offset in range(1, min(50, node['end_line'] - expected_end)):
+                            if not lines[expected_end - 1 + offset].strip():
+                                actual_end = expected_end + offset
+                                break
+                                
+                title_prefix = "Content Section" if node['is_header'] else "Text Chunk"
+                child_level = node['level'] + 1 if node['is_header'] else node['level']
+                final_nodes.append({
+                    'title': f"{title_prefix} ({start_line}-{actual_end})",
+                    'line_num': start_line,
+                    'end_line': actual_end,
+                    'level': child_level,
+                    'is_header': False
+                })
+                start_line = actual_end + 1
         else:
             final_nodes.append(node)
             
