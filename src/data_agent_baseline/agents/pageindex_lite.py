@@ -201,7 +201,6 @@ async def get_md_pageindex_summary_async(md_path: Path, model_adapter: Any = Non
 
 def get_pageindex_roadmap(context_dir: Path, model_adapter: Any = None) -> str:
     md_files = sorted(context_dir.rglob("*.md"))
-    md_files = [f for f in md_files if f.name.lower() != "knowledge.md"]
     
     if not md_files:
         return ""
