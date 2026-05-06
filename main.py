@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from pathlib import Path
 
 # Add src to the path
@@ -8,6 +9,42 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from data_agent_baseline.benchmark.dataset import DABenchPublicDataset
 from data_agent_baseline.run.runner import run_benchmark
 from data_agent_baseline.config import load_app_config, DatasetConfig, RunConfig, AppConfig
+
+class DualLogger:
+    """A logger that writes to both terminal and a file."""
+    def __init__(self, filepath, stream):
+        self.terminal = stream
+        # Ensure the directory exists
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        self.log_file = open(filepath, "a", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log_file.write(message)
+        # Flush to ensure logs are written immediately, crucial for debugging crashes
+        self.log_file.flush()
+
+    def flush(self):
+        self.terminal.flush()
+        self.log_file.flush()
+
+def setup_persistent_logging(log_dir: Path):
+    """Redirect stdout and stderr to /logs/runtime.log as per spec 3.7"""
+    if log_dir.exists():
+        log_file = log_dir / "runtime.log"
+        print(f"Setting up persistent logging to {log_file}")
+        sys.stdout = DualLogger(log_file, sys.stdout)
+        sys.stderr = DualLogger(log_file, sys.stderr)
+
+        # Hook unhandled exceptions to ensure they are logged
+        def handle_exception(exc_type, exc_value, exc_traceback):
+            if issubclass(exc_type, KeyboardInterrupt):
+                sys.__excepthook__(exc_type, exc_value, exc_traceback)
+                return
+            print("Uncaught exception:", file=sys.stderr)
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
+
+        sys.excepthook = handle_exception
 
 def main():
     root_dir = Path(__file__).resolve().parent
@@ -19,8 +56,12 @@ def main():
     # Detect if we are in Docker eval environment
     eval_input = Path("/input")
     eval_output = Path("/output")
+    eval_logs = Path("/logs")
     
     if eval_input.exists():
+        # Competition Spec 3.7: Setup persistent logging
+        setup_persistent_logging(eval_logs)
+        
         print(f"Detected evaluation environment: /input exists. Overriding paths.")
         dataset_config = DatasetConfig(root_path=eval_input)
         run_config = RunConfig(
