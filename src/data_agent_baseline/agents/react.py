@@ -218,6 +218,7 @@ class ReActAgent:
         # --- 组合导航器 (V2.1): KG + PageRAG (Title-only) ---
         from data_agent_baseline.agents.db_navigator import get_data_roadmap
         from data_agent_baseline.agents.pagerag import PageRAGNavigator
+        from data_agent_baseline.agents.pageindex_lite import get_pageindex_roadmap
         
         # 根据难度采取不同策略：Easy 任务使用精简 Roadmap 避免信息过载
         if task.difficulty == "easy":
@@ -229,10 +230,16 @@ class ReActAgent:
                 f"{json.dumps(context_tree, indent=2, ensure_ascii=False)}"
             )
             _log("Strategy: Easy task detected. Using simplified roadmap.")
+        elif task.difficulty in ("medium", "hard", "extreme"):
+            # 针对 Medium, Hard 和 Extreme 难度使用 PageIndex Lite
+            base_roadmap = get_data_roadmap(task.context_dir, model=self.model)
+            pageindex_roadmap = get_pageindex_roadmap(task.context_dir, model_adapter=self.model)
+            data_roadmap = f"{base_roadmap}\n\n{pageindex_roadmap}"
+            _log(f"Strategy: {task.difficulty.capitalize()} task detected. Using PageIndex-enhanced roadmap.")
         else:
             # 1. 获取全局结构图谱 (KG v3: Schema & Relationships Only)
             data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
-            _log("Strategy: Medium/Hard task detected. Using schema-focused roadmap.")
+            _log("Strategy: Medium task detected. Using schema-focused roadmap.")
         
         # 移除 PageRAG 初始化
         # 开始 ReAct 循环：思考 -> 行动 -> 观察

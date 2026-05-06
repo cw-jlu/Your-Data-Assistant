@@ -9,8 +9,10 @@ from typing import Any, Callable
 from data_agent_baseline.benchmark.schema import AnswerTable, PublicTask
 from data_agent_baseline.tools.answer_normalizer import normalize_answer, validate_answer_shape
 from data_agent_baseline.tools.filesystem import (
+    get_doc_structure,
     list_context_tree,
     read_csv_preview,
+    read_doc_lines,
     read_doc_preview,
     read_json_preview,
     resolve_context_path,
@@ -57,7 +59,20 @@ def _read_json(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionR
 def _read_doc(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
     path = str(action_input["path"])
     max_chars = int(action_input.get("max_chars", 4000))
-    return ToolExecutionResult(ok=True, content=read_doc_preview(task, path, max_chars=max_chars))
+    page = int(action_input.get("page", 1))
+    return ToolExecutionResult(ok=True, content=read_doc_preview(task, path, max_chars=max_chars, page=page))
+
+
+def _read_doc_lines(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
+    path = str(action_input["path"])
+    start_line = int(action_input["start_line"])
+    end_line = int(action_input["end_line"])
+    return ToolExecutionResult(ok=True, content=read_doc_lines(task, path, start_line, end_line))
+
+
+def _get_doc_structure(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
+    path = str(action_input["path"])
+    return ToolExecutionResult(ok=True, content=get_doc_structure(task, path))
 
 
 def _inspect_sqlite_schema(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
@@ -195,11 +210,20 @@ def create_default_tool_registry(python_timeout: int = 30) -> ToolRegistry:
         "read_doc": ToolSpec(
             name="read_doc",
             description=(
-                "Read a text-like document inside context. "
-                "For 'knowledge.md', returns the full document preview. "
-                "For other '.md' files, automatically performs semantic search and returns the most relevant sections to the current task."
+                "Read a text-like document inside context using character-based paging. "
+                "Use 'page' parameter to navigate through large documents."
             ),
-            input_schema={"path": "relative/path/to/file.md", "max_chars": 4000},
+            input_schema={"path": "relative/path/to/file.md", "max_chars": 4000, "page": 1},
+        ),
+        "read_doc_lines": ToolSpec(
+            name="read_doc_lines",
+            description="Read a specific range of lines from a document. Use this with line numbers from get_doc_structure.",
+            input_schema={"path": "relative/path/to/file.md", "start_line": 1, "end_line": 100},
+        ),
+        "get_doc_structure": ToolSpec(
+            name="get_doc_structure",
+            description="Get the hierarchical tree structure of a markdown document, including line numbers for each section.",
+            input_schema={"path": "relative/path/to/file.md"},
         ),
         "read_json": ToolSpec(
             name="read_json",
@@ -215,6 +239,8 @@ def create_default_tool_registry(python_timeout: int = 30) -> ToolRegistry:
         "list_context": _list_context,
         "read_csv": _read_csv,
         "read_doc": _read_doc,
+        "read_doc_lines": _read_doc_lines,
+        "get_doc_structure": _get_doc_structure,
         "read_json": _read_json,
     }
     return ToolRegistry(specs=specs, handlers=handlers)

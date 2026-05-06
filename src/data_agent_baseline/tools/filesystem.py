@@ -80,11 +80,48 @@ def read_json_preview(task: PublicTask, relative_path: str, *, max_chars: int = 
     }
 
 
-def read_doc_preview(task: PublicTask, relative_path: str, *, max_chars: int = 4000) -> dict[str, object]:
+def read_doc_preview(task: PublicTask, relative_path: str, *, max_chars: int = 4000, page: int = 1) -> dict[str, object]:
     path = resolve_context_path(task, relative_path)
     text = path.read_text(encoding="utf-8", errors="replace")
+    
+    total_pages = (len(text) + max_chars - 1) // max_chars
+    start_idx = (page - 1) * max_chars
+    end_idx = start_idx + max_chars
+    
     return {
         "path": relative_path,
-        "preview": text[:max_chars],
-        "truncated": len(text) > max_chars,
+        "preview": text[start_idx:end_idx],
+        "page": page,
+        "total_pages": total_pages,
+        "truncated": len(text) > end_idx,
+    }
+
+
+def read_doc_lines(task: PublicTask, relative_path: str, start_line: int, end_line: int) -> dict[str, object]:
+    path = resolve_context_path(task, relative_path)
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    
+    # Lines are usually 1-indexed in the tree
+    total_lines = len(lines)
+    s = max(0, start_line - 1)
+    e = min(total_lines, end_line)
+    
+    return {
+        "path": relative_path,
+        "content": "\n".join(lines[s:e]),
+        "start_line": s + 1,
+        "end_line": e,
+        "total_lines": total_lines
+    }
+
+def get_doc_structure(task: PublicTask, relative_path: str) -> dict[str, object]:
+    from data_agent_baseline.agents.pageindex_lite import get_md_pageindex_summary
+    path = resolve_context_path(task, relative_path)
+    if not path.name.lower().endswith(".md"):
+        return {"error": "Only markdown files are supported for tree structure."}
+    
+    structure = get_md_pageindex_summary(path)
+    return {
+        "path": relative_path,
+        "structure": structure
     }
