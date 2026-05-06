@@ -118,7 +118,6 @@ def _run_single_task_core(
         tools=tools or create_default_tool_registry(python_timeout=config.agent.python_timeout),
         config=ReActAgentConfig(
             max_steps=config.agent.max_steps,
-            rag_top_k=config.agent.rag_top_k,
             max_repeated_actions=config.agent.max_repeated_actions,
             error_reflection_threshold=config.agent.error_reflection_threshold,
             max_consecutive_errors=config.agent.max_consecutive_errors,
