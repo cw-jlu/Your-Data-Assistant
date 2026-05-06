@@ -149,7 +149,7 @@ async def generate_node_summary_async(node: Dict, model_adapter: Any) -> str:
     except Exception:
         return ""
 
-async def generate_summaries_recursively_async(nodes: List[Dict], model_adapter: Any, max_summaries: int = 15):
+async def generate_summaries_recursively_async(nodes: List[Dict], model_adapter: Any, max_summaries: int = 1000):
     all_nodes = []
     def _collect(node_list):
         for node in node_list:
@@ -159,10 +159,8 @@ async def generate_summaries_recursively_async(nodes: List[Dict], model_adapter:
     
     _collect(nodes)
     
-    # Filter for nodes that are worth summarizing
-    candidates = [n for n in all_nodes if len(n['text']) > 400]
-    # Sort by length to prioritize large sections, but limit total
-    candidates = sorted(candidates, key=lambda x: len(x['text']), reverse=True)[:max_summaries]
+    # Generate summaries for all nodes that have text
+    candidates = [n for n in all_nodes if n.get('text', '').strip()]
     
     if not candidates:
         return nodes
