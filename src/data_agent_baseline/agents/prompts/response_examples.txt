@@ -46,3 +46,18 @@
   }
 }
 ```
+
+### Example 4: Reading Business Rules via PageIndex Line Numbers (ALWAYS DO THIS FIRST)
+```json
+{
+  "thought": "The question involves 'abnormal' WBC levels. I must NOT use my own knowledge of medical thresholds. The DATA ROADMAP shows knowledge.md exists, and the PageIndex tree shows '[0003] WBC Reference Ranges (lines 45-62)'. I will read exactly those lines to get the domain-defined threshold.",
+  "reflection": "Using my own assumption would risk wrong answers. The PageIndex gives me the exact line range — I should use read_doc_lines instead of reading the whole document.",
+  "data_sufficient": false,
+  "action": "read_doc_lines",
+  "action_input": {
+    "path": "knowledge.md",
+    "start_line": 45,
+    "end_line": 62
+  }
+}
+```

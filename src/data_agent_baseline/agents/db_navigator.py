@@ -21,7 +21,13 @@ def _scan_databases(context_dir: Path):
                 fks = [{"from": row[3], "to_table": row[2], "to_column": row[4]} for row in cursor.fetchall()]
                 cursor.execute(f"PRAGMA table_info({table});")
                 cols = [row[1] for row in cursor.fetchall()]
-                table_details[table] = {"columns": cols, "foreign_keys": fks}
+                # 获取行数（COUNT(*)在SQLite上很快）
+                try:
+                    cursor.execute(f"SELECT COUNT(*) FROM [{table}];")
+                    row_count = cursor.fetchone()[0]
+                except Exception:
+                    row_count = None
+                table_details[table] = {"columns": cols, "foreign_keys": fks, "row_count": row_count}
             
             db_info.append({"path": str(rel_path.as_posix()), "tables": table_details})
             conn.close()
@@ -52,32 +58,54 @@ def get_data_roadmap(context_dir: Path, model=None):
     # 1. 基础结构扫描
     dbs = _scan_databases(context_dir)
     csvs, jsons = _get_csv_json_schemas(context_dir)
-    
-    # 2. 关系提取 (保留核心能力)
-    # 这里我们利用文件名和字段名进行简单的启发式关联，或调用 LLM 进行一次性关系总结
-    # 为保持精简和速度，我们主要列出物理外键和同名字段
-    all_columns = defaultdict(list)
-    for db in dbs:
-        for t_name, t_meta in db["tables"].items():
-            for col in t_meta["columns"]:
-                all_columns[col.lower()].append(f"{db['path']}.{t_name}")
-    for csv in csvs:
-        for col in csv["columns"]:
-            all_columns[col.lower()].append(csv["path"])
 
-    potential_matches = {k: v for k, v in all_columns.items() if len(v) > 1 and k in ("id", "customerid", "driverid", "productid")}
+    # 主动扫描 knowledge 文档：knowledge.md 包含业务规则和定义，必须优先阅读
+    knowledge_docs = [
+        str(f.relative_to(context_dir).as_posix())
+        for f in sorted(context_dir.rglob("*.md"))
+        if "knowledge" in f.name.lower()
+    ]
+
+    # 2. 同名字段统计：出现在 2+ 个文件中的字段，全部列出
+    all_columns = defaultdict(set)
+    for db in dbs:
+        for t_meta in db["tables"].values():
+            for col in t_meta["columns"]:
+                all_columns[col.lower()].add(db["path"])
+    for csv_f in csvs:
+        for col in csv_f["columns"]:
+            all_columns[col.lower()].add(csv_f["path"])
+
+    shared_fields = {
+        k: sorted(v)
+        for k, v in sorted(all_columns.items(), key=lambda x: -len(x[1]))
+        if len(v) > 1
+    }
 
     # 3. 构造 Roadmap
     roadmap = {
+        "IMPORTANT": (
+            "READ knowledge_docs FIRST before writing any query or code. "
+            "They contain business definitions, thresholds, and domain rules that determine correct answers."
+        ) if knowledge_docs else None,
         "data_assets": {
+            "knowledge_docs": knowledge_docs,
             "databases": dbs,
             "csv_files": csvs,
             "json_files": jsons
         },
         "relationships": {
-            "potential_id_joins": potential_matches,
-            "note": "Use read_doc('knowledge.md') for complex business join rules."
+            "shared_fields": shared_fields,
+            "note": (
+                "These fields share the same name across multiple files. "
+                "This is a NAME HINT only — do NOT assume they can be JOINed directly. "
+                "Always verify the actual join semantics in knowledge_docs before using them as join keys."
+            )
         }
     }
-    
-    return "=== DATA ROADMAP (SCHEMA & RELATIONS ONLY) ===\n" + json.dumps(roadmap, indent=2)
+
+    # 去掉 IMPORTANT 为 None 的情况（没有 knowledge 文档时不注入）
+    if not knowledge_docs:
+        del roadmap["IMPORTANT"]
+
+    return "=== DATA ROADMAP (SCHEMA & RELATIONS ONLY) ===\n" + json.dumps(roadmap, indent=2, ensure_ascii=False)
