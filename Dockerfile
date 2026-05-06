@@ -1,0 +1,22 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install uv for fast dependency resolution
+RUN pip install uv
+
+# Copy project configuration and required files for package build
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ ./src/
+
+# Install dependencies into system environment (using Tsinghua mirror to avoid timeouts)
+ENV UV_HTTP_TIMEOUT=300
+RUN uv pip install --system -e . --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Copy additional files needed for runtime
+COPY main.py ./
+COPY configs/ ./configs/
+
+# Evaluation entrypoint
+# Note: Persistent logging to /logs/runtime.log is handled internally by main.py
+ENTRYPOINT ["python", "main.py"]

@@ -38,3 +38,4 @@ configs/*
 # OS / notebook noise
 .DS_Store
 .ipynb_checkpoints/
+*.tar.gz
