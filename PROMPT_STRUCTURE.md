@@ -23,7 +23,7 @@
 | **[CSV/JSON] 文件结构** | 文件名、全量列名、总记录数。 | 自动识别结构，展示全量字段，不含样本。 |
 | **[FK] 关联关系** | 物理外键关系、基于同名字段的逻辑关联建议。 | 自动发现跨表 `ID` 关联。 |
 | **[PageIndex] 文档树状索引** | 将超长 Markdown 文件切分为带起始/终止行号的目录树。 | 针对 Extreme/Hard 任务。取代旧版 PageRAG，解决“大海捞针”问题。 |
-| **[Knowledge] 业务摘要** | 将 `knowledge.md` 整体或切块进行 LLM 语义摘要。 | 与 PageIndex 深度融合，强制确保业务规则对 Agent 可见。且对 `knowledge.md` 关闭自动切块（保持规则完整性）。 |
+| **[Knowledge] 业务摘要** | 将 `knowledge.md` 作为一个整体进行 LLM 语义摘要。 | 与 PageIndex 深度融合，强制确保业务规则对 Agent 可见。为保持业务规则的完整性，对该文件关闭自动切块。 |
 | **[LLM Summary] 节点摘要** | 异步并发调用大模型，为每个长文本区块生成 15 词极简摘要。 | 与 PageIndex 深度融合，赋予物理区块以语义标签。 |
 
 ### C. 工具说明书 (Tool Descriptions)
