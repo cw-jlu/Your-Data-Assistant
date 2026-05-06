@@ -298,19 +298,8 @@ class ReActAgent:
                     break
 
             try:
-                # Option A: 按需 RAG —— 拦截对 .md 文件的 read_doc 调用
-                is_read_doc = model_step.action == "read_doc"
-                doc_path = str(model_step.action_input.get("path", "")).lower()
-                if is_read_doc and doc_path.endswith(".md") and not doc_path.endswith("knowledge.md"):
-                    _log(f"[PageRAG] On-demand retrieval triggered for: {doc_path}")
-                    retrieved_pages = pagerag.retrieve(task.question)
-                    from data_agent_baseline.tools.registry import ToolExecutionResult
-                    tool_result = ToolExecutionResult(
-                        ok=True,
-                        content={"retrieved_segments": retrieved_pages or "No relevant sections found in this document."},
-                    )
-                else:
-                    tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
+                # 执行工具
+                tool_result = self.tools.execute(task, model_step.action, model_step.action_input)
                 
                 # 如果报错，加入反思提醒
                 obs_error = ""
@@ -319,6 +308,7 @@ class ReActAgent:
                     obs_error = reflection_hint
                 else:
                     consecutive_errors = 0 # 只要有一次成功，就重置连续错误计数
+
                 
                 # 记录观察结果 (简化版以节省 Token)
                 if tool_result.ok:
