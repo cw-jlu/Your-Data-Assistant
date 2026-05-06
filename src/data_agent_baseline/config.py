@@ -86,7 +86,6 @@ def load_app_config(config_path: Path) -> AppConfig:
         max_steps=int(agent_payload.get("max_steps", agent_defaults.max_steps)),
         temperature=float(agent_payload.get("temperature", agent_defaults.temperature)),
         max_tokens=agent_payload.get("max_tokens", agent_defaults.max_tokens),
-        rag_top_k=int(agent_payload.get("rag_top_k", agent_defaults.rag_top_k)),
         python_timeout=int(agent_payload.get("python_timeout", agent_defaults.python_timeout)),
         max_repeated_actions=int(agent_payload.get("max_repeated_actions", agent_defaults.max_repeated_actions)),
         error_reflection_threshold=int(agent_payload.get("error_reflection_threshold", agent_defaults.error_reflection_threshold)),
