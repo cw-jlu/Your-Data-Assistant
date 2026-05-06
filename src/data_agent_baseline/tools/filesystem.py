@@ -115,12 +115,24 @@ def read_doc_lines(task: PublicTask, relative_path: str, start_line: int, end_li
     }
 
 def get_doc_structure(task: PublicTask, relative_path: str) -> dict[str, object]:
-    from data_agent_baseline.agents.pageindex_lite import get_md_pageindex_summary
+    from data_agent_baseline.agents.pageindex_lite import get_md_pageindex_summary_async
+    import asyncio
     path = resolve_context_path(task, relative_path)
     if not path.name.lower().endswith(".md"):
         return {"error": "Only markdown files are supported for tree structure."}
     
-    structure = get_md_pageindex_summary(path)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import threading
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                structure = executor.submit(asyncio.run, get_md_pageindex_summary_async(path)).result()
+        else:
+            structure = asyncio.run(get_md_pageindex_summary_async(path))
+    except RuntimeError:
+        structure = asyncio.run(get_md_pageindex_summary_async(path))
+        
     return {
         "path": relative_path,
         "structure": structure

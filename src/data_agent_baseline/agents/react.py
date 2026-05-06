@@ -28,8 +28,6 @@ class ReActAgentConfig:
     error_reflection_threshold: int = 3
     # 连续报错达到多少次时停止任务（熔断）
     max_consecutive_errors: int = 6
-    # RAG 检索返回的最大分块数
-    rag_top_k: int = 5
     # 连续执行相同操作多少次时判定为死循环
     max_repeated_actions: int = 3
 
@@ -215,9 +213,8 @@ class ReActAgent:
 
         _log(f"=== Starting Task {task.task_id} ===")
 
-        # --- 组合导航器 (V2.1): KG + PageRAG (Title-only) ---
+        # --- 组合导航器 ---
         from data_agent_baseline.agents.db_navigator import get_data_roadmap
-        from data_agent_baseline.agents.pagerag import PageRAGNavigator
         from data_agent_baseline.agents.pageindex_lite import get_pageindex_roadmap
         
         # 根据难度采取不同策略：Easy 任务使用精简 Roadmap 避免信息过载
@@ -241,7 +238,6 @@ class ReActAgent:
             data_roadmap = get_data_roadmap(task.context_dir, model=self.model)
             _log("Strategy: Medium task detected. Using schema-focused roadmap.")
         
-        # 移除 PageRAG 初始化
         # 开始 ReAct 循环：思考 -> 行动 -> 观察
         consecutive_errors = 0
         action_history: list[tuple[str, str]] = []

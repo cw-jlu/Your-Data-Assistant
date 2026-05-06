@@ -34,10 +34,8 @@ class AgentConfig:
     max_steps: int = 35
     temperature: float = 0.0
     max_tokens: int | None = 8192
-    rag_top_k: int = 30  # PageRAG/GraphRAG 检索返回的最大分块数
-    
-    python_timeout: int = 30
-    max_repeated_actions: int = 3
+
+    python_timeout: int = 30    max_repeated_actions: int = 3
     error_reflection_threshold: int = 3
     max_consecutive_errors: int = 6
 
