@@ -105,7 +105,23 @@ def _execute_python(task: PublicTask, action_input: dict[str, Any], timeout_seco
     return ToolExecutionResult(ok=bool(content.get("success")), content=content)
 
 
+_intercepted_tasks = set()
+
 def _answer(task: PublicTask, action_input: dict[str, Any]) -> ToolExecutionResult:
+    # Intercept the first call for a task to force a final review
+    if task.task_id not in _intercepted_tasks:
+        _intercepted_tasks.add(task.task_id)
+        from pathlib import Path
+        prompt_file = Path(__file__).resolve().parents[1] / "agents" / "prompts" / "final_review_prompt.txt"
+        review_prompt = "Please verify your answer formatting and logic."
+        if prompt_file.exists():
+            review_prompt = prompt_file.read_text(encoding="utf-8").strip()
+            
+        return ToolExecutionResult(
+            ok=False, 
+            content={"error": review_prompt}
+        )
+
     columns = action_input.get("columns")
     rows = action_input.get("rows")
     if not isinstance(columns, list) or not columns or not all(isinstance(item, str) for item in columns):

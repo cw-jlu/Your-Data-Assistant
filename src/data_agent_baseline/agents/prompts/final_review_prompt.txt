@@ -1,0 +1,12 @@
+[SYSTEM INTERCEPT] FINAL VERIFICATION REQUIRED
+
+You have called the `answer` tool. Before your answer is permanently submitted, you MUST perform a final verification to prevent common calculation and formatting errors. 
+
+Please review your proposed answer against the following checklist:
+1. **Formatting**: Does your final output exactly match the requested columns and rows? Do NOT include extra explanatory columns. If the question asks for a single number, return exactly one column and one row.
+2. **Aggregation**: Did the question ask for a SUM, AVG, or Percentage? Ensure your mathematical operations strictly follow the business logic (e.g., percentages usually need to be multiplied by 100).
+3. **Time Reference**: If calculating age or duration, use the current year **2026** unless explicitly stated otherwise in the document.
+4. **Knowledge Rules**: Did you consult `knowledge.md` to confirm the exact thresholds (e.g., 'abnormal') before filtering the data?
+
+If you find ANY errors in your previous steps, DO NOT call `answer` yet. Use Python to fix your data.
+If you are 100% confident your answer is perfectly aligned with the checklist, call the `answer` tool AGAIN with the EXACT SAME data. The system will accept it on the second attempt.

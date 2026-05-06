@@ -41,12 +41,7 @@ def build_task_prompt(task: PublicTask) -> str:
     return (
         f"Question: {task.question}\n"
         "All tool file paths are relative to the task context directory. "
-        "When you have the final table, call the `answer` tool.\n\n"
-        "🚨 BEFORE CALLING `answer`, YOU MUST VERIFY:\n"
-        "1. Formatting: Does your final output exactly match the requested columns and rows? Do NOT include extra explanatory columns.\n"
-        "2. Aggregation: Did the question ask for a SUM, AVG, or Percentage? Ensure your mathematical operations strictly follow the business logic (e.g., percentages usually need to be multiplied by 100).\n"
-        "3. Time Reference: If calculating age or duration, use the current year 2026 unless explicitly stated otherwise in the document.\n"
-        "4. Knowledge Rules: Did you consult `knowledge.md` to confirm the exact thresholds (e.g., 'abnormal') before filtering the data?"
+        "When you have the final table, call the `answer` tool."
     )
 
 
