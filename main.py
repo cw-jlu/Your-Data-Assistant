@@ -47,64 +47,50 @@ def setup_persistent_logging(log_dir: Path):
         sys.excepthook = handle_exception
 
 def main():
+    # Strict compliance with Official Technical Specifications
+    EVAL_INPUT = Path("/input")
+    EVAL_OUTPUT = Path("/output")
+    EVAL_LOGS = Path("/logs")
+
+    # 1. Setup mandatory persistent logging to /logs/runtime.log (Spec 3.7)
+    setup_persistent_logging(EVAL_LOGS)
+    
+    print("=== Official Evaluation Startup ===")
+    print(f"Input path: {EVAL_INPUT}")
+    print(f"Output path: {EVAL_OUTPUT}")
+
+    # 2. Load application configuration
+    # Note: Sensitive configs (API Key, URL, Model Name) are read from env vars in config.py (Spec 3.5 & 5.2)
     root_dir = Path(__file__).resolve().parent
     config_path = root_dir / "configs" / "react_baseline.local.yaml"
-    
-    # Load base config
     app_config = load_app_config(config_path)
 
-    # Detect if we are in Docker eval environment
-    eval_input = Path("/input")
-    eval_output = Path("/output")
-    eval_logs = Path("/logs")
-    
-    if eval_input.exists():
-        # Competition Spec 3.7: Setup persistent logging
-        setup_persistent_logging(eval_logs)
-        
-        print(f"Detected evaluation environment: /input exists. Overriding paths.")
-        dataset_config = DatasetConfig(root_path=eval_input)
-        run_config = RunConfig(
-            output_dir=eval_output,
-            run_id=app_config.run.run_id,
-            max_workers=app_config.run.max_workers,
-            task_timeout_seconds=app_config.run.task_timeout_seconds
-        )
-        app_config = AppConfig(
-            dataset=dataset_config,
-            agent=app_config.agent,
-            run=run_config
-        )
-    else:
-        print("Running in local development environment.")
-        # Make sure data/public/input exists, otherwise we fall back to user's kdd path
-        if not app_config.dataset.root_path.exists():
-            alternate_path = Path(__file__).resolve().parents[1] / "public" / "input"
-            print(f"Dataset not found at {app_config.dataset.root_path}, trying {alternate_path}")
-            if alternate_path.exists():
-                dataset_config = DatasetConfig(root_path=alternate_path)
-                app_config = AppConfig(
-                    dataset=dataset_config,
-                    agent=app_config.agent,
-                    run=app_config.run
-                )
-        
-    print(f"Using input directory: {app_config.dataset.root_path}")
-    print(f"Using output directory: {app_config.run.output_dir}")
+    # 3. Override configs with official evaluation paths
+    dataset_config = DatasetConfig(root_path=EVAL_INPUT)
+    run_config = RunConfig(
+        output_dir=EVAL_OUTPUT,
+        run_id="evaluation",
+        max_workers=app_config.run.max_workers,
+        task_timeout_seconds=app_config.run.task_timeout_seconds
+    )
+    app_config = AppConfig(
+        dataset=dataset_config,
+        agent=app_config.agent,
+        run=run_config
+    )
 
-    # Allow limiting tasks locally for quick test
-    limit_str = os.environ.get("BENCHMARK_LIMIT")
-    limit = int(limit_str) if limit_str else None
-
-    # Run the benchmark
+    # 4. Run the benchmark (Spec 3.4 & 3.6)
+    # use_flat_output=True ensures /output/task_id/prediction.csv structure (Spec 2.1 & 2.4)
     print("Starting benchmark evaluation loop...")
-    # Evaluation environment requires flat output directory (/output/task_id/...)
-    use_flat_output = eval_input.exists()
-    run_output_dir, artifacts = run_benchmark(config=app_config, limit=limit, use_flat_output=use_flat_output)
+    run_output_dir, artifacts = run_benchmark(
+        config=app_config, 
+        use_flat_output=True
+    )
     
-    print(f"Benchmark finished. Run output: {run_output_dir}")
+    print(f"Benchmark finished.")
     print(f"Tasks attempted: {len(artifacts)}")
     print(f"Succeeded tasks: {sum(1 for item in artifacts if item.succeeded)}")
+
 
 
 if __name__ == "__main__":
