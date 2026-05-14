@@ -18,5 +18,6 @@ COPY main.py ./
 COPY configs/ ./configs/
 
 # Evaluation entrypoint
-# Note: Persistent logging to /logs/runtime.log is handled internally by main.py
-ENTRYPOINT ["python", "main.py"]
+# Competition Spec 3.7: Synchronously save stdout/stderr to /logs/runtime.log
+# We use the shell form to allow for pipe and redirection
+ENTRYPOINT python main.py 2>&1 | tee /logs/runtime.log
