@@ -250,8 +250,14 @@ def run_benchmark(
     tools: ToolRegistry | None = None,
     limit: int | None = None,
     progress_callback: Callable[[TaskRunArtifacts], None] | None = None,
+    use_flat_output: bool = False,
 ) -> tuple[Path, list[TaskRunArtifacts]]:
-    effective_run_id, run_output_dir = create_run_output_dir(config.run.output_dir, run_id=config.run.run_id)
+    if use_flat_output:
+        effective_run_id = resolve_run_id(config.run.run_id) if config.run.run_id else "evaluation"
+        run_output_dir = config.run.output_dir
+        run_output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        effective_run_id, run_output_dir = create_run_output_dir(config.run.output_dir, run_id=config.run.run_id)
 
     dataset = DABenchPublicDataset(config.dataset.root_path)
     tasks = dataset.iter_tasks()

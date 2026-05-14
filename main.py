@@ -98,7 +98,9 @@ def main():
 
     # Run the benchmark
     print("Starting benchmark evaluation loop...")
-    run_output_dir, artifacts = run_benchmark(config=app_config, limit=limit)
+    # Evaluation environment requires flat output directory (/output/task_id/...)
+    use_flat_output = eval_input.exists()
+    run_output_dir, artifacts = run_benchmark(config=app_config, limit=limit, use_flat_output=use_flat_output)
     
     print(f"Benchmark finished. Run output: {run_output_dir}")
     print(f"Tasks attempted: {len(artifacts)}")
