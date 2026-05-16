@@ -8,7 +8,14 @@ Example response when you have the final answer:
 {"thought":"I have the final result table.","action":"answer","action_input":{"columns":["average_long_shots"],"rows":[["63.5"]]}}
 ```
 
-Example for valid execute_python call:
+Example for valid execute_python call (use single quotes for strings inside code):
 ```json
-{"thought":"Analyze and filter csv data","action":"execute_python","action_input":{"code":"import csv\nwith open('csv/expense.csv','r') as f: reader = csv.DictReader(f)"}}
+{"thought":"Read and filter CSV data","action":"execute_python","action_input":{"code":"import csv\nwith open('data/file.csv','r') as f:\n    reader = csv.DictReader(f)\n    rows = [r for r in reader]"}}
 ```
+
+Example for execute_python with string operations (NEVER use triple quotes):
+```json
+{"thought":"Process text data","action":"execute_python","action_input":{"code":"import csv\nresult = []\nwith open('data/file.csv','r') as f:\n    for row in csv.DictReader(f):\n        result.append(row['name'])"}}
+```
+
+IMPORTANT: In execute_python code, always use single quotes (') for Python strings. Never use triple quotes (\"\"\") as they break JSON parsing.

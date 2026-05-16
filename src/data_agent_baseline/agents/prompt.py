@@ -23,16 +23,29 @@ REACT_SYSTEM_PROMPT = _load_prompt("react_system_prompt.txt")
 RESPONSE_EXAMPLES = _load_prompt("response_examples.txt")
 
 
-def build_system_prompt(tool_descriptions: str, system_prompt: str | None = None) -> str:
+def build_system_prompt(
+    tool_descriptions: str,
+    system_prompt: str | None = None,
+    wiki_context: str | None = None,
+) -> str:
     base_prompt = system_prompt or REACT_SYSTEM_PROMPT
-    return (
-        f"{base_prompt}\n\n"
-        "Available tools:\n"
-        f"{tool_descriptions}\n\n"
-        f"{RESPONSE_EXAMPLES}\n\n"
+    parts = [
+        base_prompt,
+        "",
+        "Available tools:",
+        tool_descriptions,
+        "",
+    ]
+    if wiki_context:
+        parts.append(wiki_context)
+        parts.append("")
+    parts.append(RESPONSE_EXAMPLES)
+    parts.append("")
+    parts.append(
         "You must always return a single ```json fenced block containing one JSON object "
         "with keys `thought`, `action`, and `action_input`, and no extra text."
     )
+    return "\n".join(parts)
 
 
 def build_task_prompt(task: PublicTask) -> str:
@@ -43,6 +56,9 @@ def build_task_prompt(task: PublicTask) -> str:
     )
 
 
-def build_observation_prompt(observation: dict[str, object]) -> str:
-    rendered = json.dumps(observation, ensure_ascii=False, indent=2)
+def build_observation_prompt(observation: object) -> str:
+    if isinstance(observation, dict):
+        rendered = json.dumps(observation, ensure_ascii=False, indent=2)
+    else:
+        rendered = str(observation)
     return f"Observation:\n{rendered}"

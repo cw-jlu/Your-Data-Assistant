@@ -53,3 +53,53 @@
 | **GraphRAG** | 标准化 12 种关系类型；引入**置信度过滤**与**实体去重**；支持 LLM 异步预提取。 | 解决三元组冗余、语义模糊及无效信息干扰问题。 |
 | **配置系统** | 新增全局参数 `rag_top_k`。 | 解决检索深度难以统一调节的问题。 |
 | **环境兼容** | `run_failed.py` 强制开启 UTF-8 模式。 | 彻底解决 Windows 环境下的 `GBK` 编码崩溃。 |
+
+---
+
+## 6. LLM Wiki 知识库系统 (LLM Wiki Knowledge Base)
+
+基于 Andrej Karpathy (2026-04) 提出的 LLM Wiki 设计模式实现。核心思想：Agent 不再对每个任务从零开始推理，而是**增量构建并维护一个持久化的、相互链接的 Markdown 知识维基**。
+
+### 架构设计
+
+| 层 | 说明 |
+| :--- | :--- |
+| **原始数据 (Raw Sources)** | 任务 context/ 目录中的 CSV、SQLite、JSON、文档。不可变。 |
+| **Wiki (Markdown Pages)** | Agent 自动维护的结构化知识页面。包含实体页、概念页、任务摘要页、综合分析页。通过 `[[wikilinks]]` 互相链接。 |
+| **Schema (Index + Log)** | `index.md` 按类别编目所有页面；`log.md` 按时间顺序记录所有操作。 |
+
+### 新增模块
+
+| 文件 | 功能 |
+| :--- | :--- |
+| `src/data_agent_baseline/wiki/engine.py` | Wiki 核心引擎：页面 CRUD、索引管理、wikilink 解析 |
+| `src/data_agent_baseline/wiki/retrieval.py` | TF-IDF 余弦相似度检索：为新任务找到相关已有知识 |
+| `src/data_agent_baseline/wiki/ingest.py` | 知识提取器：从已完成任务中提取 schema、SQL 模式、领域概念 |
+| `src/data_agent_baseline/wiki/registry.py` | Wiki 工具注册：wiki_search、wiki_get_page、wiki_list_index |
+
+### 工作流
+
+```
+任务开始 → Wiki Retrieval (TF-IDF 搜索相关知识)
+         → 注入 wiki_context 到系统提示词
+         → Agent 利用已有知识 + 工具解决任务
+         → 任务完成 → Wiki Ingest (提取新知识)
+         → 创建/更新实体页、概念页、任务摘要页
+         → 更新 index.md 和 log.md
+```
+
+### 配置
+
+```yaml
+wiki:
+  enabled: true          # 是否启用 LLM Wiki
+  wiki_root: wiki        # Wiki 目录路径
+  retrieval_top_k: 5     # 检索返回的最大页面数
+  auto_ingest: true      # 任务完成后自动提取知识
+```
+
+### 合规性
+
+- 不使用额外 LLM：知识提取基于规则（schema 解析、SQL 模式匹配）
+- 不访问外部网络：纯本地 TF-IDF 检索，无 embedding API 调用
+- 符合评测规则：wiki 工具作为辅助工具注册，不替代主推理模型

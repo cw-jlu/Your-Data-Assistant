@@ -43,21 +43,27 @@ class OpenAIModelAdapter:
         self.api_key = api_key
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self._client: OpenAI | None = None
+
+    def _get_client(self) -> OpenAI:
+        if self._client is None:
+            self._client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.api_base,
+            )
+        return self._client
 
     def complete(self, messages: list[ModelMessage]) -> str:
         if not self.api_key:
             raise RuntimeError("Missing model API key in config.agent.api_key.")
 
-        client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.api_base,
-        )
+        client = self._get_client()
 
         try:
             kwargs = {}
             if self.max_tokens is not None:
                 kwargs["max_tokens"] = self.max_tokens
-                
+
             response = client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": message.role, "content": message.content} for message in messages],

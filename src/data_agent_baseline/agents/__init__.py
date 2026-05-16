@@ -10,12 +10,17 @@ from data_agent_baseline.agents.prompt import (
     build_system_prompt,
     build_task_prompt,
 )
-from data_agent_baseline.agents.react import ReActAgent, ReActAgentConfig, parse_model_step
-from data_agent_baseline.agents.runtime import AgentRunResult, AgentRuntimeState, StepRecord
+from data_agent_baseline.agents.react import (
+    AgentRuntimeState,
+    AgentStep,
+    ReActAgent,
+    ReActAgentConfig,
+    parse_model_step,
+)
 
 __all__ = [
-    "AgentRunResult",
     "AgentRuntimeState",
+    "AgentStep",
     "ModelAdapter",
     "ModelMessage",
     "ModelStep",
@@ -23,7 +28,6 @@ __all__ = [
     "REACT_SYSTEM_PROMPT",
     "ReActAgent",
     "ReActAgentConfig",
-    "StepRecord",
     "build_observation_prompt",
     "build_system_prompt",
     "build_task_prompt",

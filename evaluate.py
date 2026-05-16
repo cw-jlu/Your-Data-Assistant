@@ -30,7 +30,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DATA_ROOT = PROJECT_ROOT.parent / "public"
+DATA_ROOT = PROJECT_ROOT / "public"
 ARTIFACTS_ROOT = PROJECT_ROOT / "artifacts" / "runs"
 
 # 全局评分参数

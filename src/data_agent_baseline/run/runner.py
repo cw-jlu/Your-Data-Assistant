@@ -20,6 +20,9 @@ from data_agent_baseline.agents.react import ReActAgent, ReActAgentConfig
 from data_agent_baseline.benchmark.dataset import DABenchPublicDataset
 from data_agent_baseline.config import AppConfig
 from data_agent_baseline.tools.registry import ToolRegistry, create_default_tool_registry
+from data_agent_baseline.wiki.engine import WikiEngine
+from data_agent_baseline.wiki.ingest import WikiIngestor
+from data_agent_baseline.wiki.retrieval import WikiRetriever
 
 
 # 记录单个任务运行结果的产物数据结构
@@ -79,7 +82,7 @@ def build_model_adapter(config: AppConfig):
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _write_csv(path: Path, columns: list[str], rows: list[list[Any]]) -> None:
@@ -108,24 +111,56 @@ def _run_single_task_core(
     model=None,
     tools: ToolRegistry | None = None,
     task_output_dir: Path | None = None,
+    wiki_engine: WikiEngine | None = None,
+    wiki_retriever: WikiRetriever | None = None,
 ) -> dict[str, Any]:
     public_dataset = DABenchPublicDataset(config.dataset.root_path)
     task = public_dataset.get_task(task_id)
 
+    # Retrieve wiki context for this task (reuse retriever if provided)
+    wiki_context = None
+    if wiki_engine is not None and config.wiki.enabled:
+        retriever = wiki_retriever or WikiRetriever(wiki_engine)
+        wiki_context = retriever.build_context_string(
+            task.question, top_k=config.wiki.retrieval_top_k
+        )
+
+    # Build tool registry (with wiki tools if available)
+    effective_tools = tools or create_default_tool_registry(wiki_engine=wiki_engine)
+
     agent = ReActAgent(
         model=model or build_model_adapter(config),
-        tools=tools or create_default_tool_registry(),
+        tools=effective_tools,
         config=ReActAgentConfig(max_steps=config.agent.max_steps),
+        wiki_context=wiki_context,
     )
     run_result = agent.run(task, task_output_dir=task_output_dir)
-    return run_result.to_dict()
+
+    # Ingest task results into wiki after completion
+    result_dict = run_result.to_dict()
+    if wiki_engine is not None and config.wiki.enabled and config.wiki.auto_ingest:
+        try:
+            ingestor = WikiIngestor(wiki_engine)
+            ingestor.ingest_task(task, run_result=result_dict)
+        except Exception as exc:
+            import sys
+            print(f"[WIKI] Ingest failed for {task.task_id}: {exc}", file=sys.stderr)
+
+    return result_dict
 
 
 def _run_single_task_in_subprocess(task_id: str, config: AppConfig, result_file: str, task_output_dir: Path | None = None) -> None:
     import sys
     print(f"[SUBPROCESS] Starting task {task_id}", flush=True, file=sys.stderr)
     try:
-        result = _run_single_task_core(task_id=task_id, config=config, task_output_dir=task_output_dir)
+        # Create wiki engine from config (each subprocess creates its own)
+        wiki_engine = None
+        if config.wiki.enabled:
+            wiki_engine = WikiEngine(config.wiki.wiki_root)
+        result = _run_single_task_core(
+            task_id=task_id, config=config, task_output_dir=task_output_dir,
+            wiki_engine=wiki_engine,
+        )
         print(f"[SUBPROCESS] Task completed", flush=True, file=sys.stderr)
         payload = {"ok": True, "run_result": result}
     except BaseException as exc:  # noqa: BLE001
@@ -223,15 +258,21 @@ def run_single_task(
     run_output_dir: Path,
     model=None,
     tools: ToolRegistry | None = None,
+    wiki_engine: WikiEngine | None = None,
+    wiki_retriever: WikiRetriever | None = None,
 ) -> TaskRunArtifacts:
     started_at = perf_counter()
     task_output_dir = run_output_dir / task_id
     task_output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     if model is None and tools is None:
         run_result = _run_single_task_with_timeout(task_id=task_id, config=config, task_output_dir=task_output_dir)
     else:
-        run_result = _run_single_task_core(task_id=task_id, config=config, model=model, tools=tools, task_output_dir=task_output_dir)
+        run_result = _run_single_task_core(
+            task_id=task_id, config=config, model=model, tools=tools,
+            task_output_dir=task_output_dir, wiki_engine=wiki_engine,
+            wiki_retriever=wiki_retriever,
+        )
     run_result["e2e_elapsed_seconds"] = round(perf_counter() - started_at, 3)
     return _write_task_outputs(task_id, run_output_dir, run_result)
 
@@ -247,6 +288,11 @@ def run_benchmark(
 ) -> tuple[Path, list[TaskRunArtifacts]]:
     effective_run_id, run_output_dir = create_run_output_dir(config.run.output_dir, run_id=config.run.run_id)
 
+    # Initialize wiki engine if enabled
+    wiki_engine = None
+    if config.wiki.enabled:
+        wiki_engine = WikiEngine(config.wiki.wiki_root)
+
     dataset = DABenchPublicDataset(config.dataset.root_path)
     tasks = dataset.iter_tasks()
     if limit is not None:
@@ -260,10 +306,13 @@ def run_benchmark(
 
     task_ids = [task.task_id for task in tasks]
 
+    # Create shared retriever for cache reuse across tasks
+    shared_retriever = WikiRetriever(wiki_engine) if wiki_engine else None
+
     task_artifacts: list[TaskRunArtifacts]
     if effective_workers == 1:
         shared_model = model or build_model_adapter(config)
-        shared_tools = tools or create_default_tool_registry()
+        shared_tools = tools or create_default_tool_registry(wiki_engine=wiki_engine)
         task_artifacts = []
         for task_id in task_ids:
             artifact = run_single_task(
@@ -272,6 +321,8 @@ def run_benchmark(
                 run_output_dir=run_output_dir,
                 model=shared_model,
                 tools=shared_tools,
+                wiki_engine=wiki_engine,
+                wiki_retriever=shared_retriever,
             )
             task_artifacts.append(artifact)
             if progress_callback is not None:

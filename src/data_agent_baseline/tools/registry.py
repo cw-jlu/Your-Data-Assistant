@@ -131,7 +131,9 @@ class ToolRegistry:
         return self.handlers[action](task, action_input)
 
 
-def create_default_tool_registry() -> ToolRegistry:
+def create_default_tool_registry(
+    wiki_engine=None,
+) -> ToolRegistry:
     specs = {
         "answer": ToolSpec(
             name="answer",
@@ -195,4 +197,27 @@ def create_default_tool_registry() -> ToolRegistry:
         "read_doc": _read_doc,
         "read_json": _read_json,
     }
+
+    # Add wiki tools if wiki engine is provided
+    if wiki_engine is not None:
+        from data_agent_baseline.wiki.registry import create_wiki_tool_registry
+        wiki_tools = create_wiki_tool_registry(wiki_engine)
+        for name, spec_dict in wiki_tools["specs"].items():
+            specs[name] = ToolSpec(
+                name=spec_dict["name"],
+                description=spec_dict["description"],
+                input_schema=spec_dict["input_schema"],
+            )
+        for name, handler in wiki_tools["handlers"].items():
+            def _make_handler(h):
+                def _wrapped(_task, inp):
+                    try:
+                        content = h(_task, inp)
+                        ok = "error" not in content
+                        return ToolExecutionResult(ok=ok, content=content)
+                    except Exception as exc:
+                        return ToolExecutionResult(ok=False, content={"error": str(exc)})
+                return _wrapped
+            handlers[name] = _make_handler(handler)
+
     return ToolRegistry(specs=specs, handlers=handlers)
