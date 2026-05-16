@@ -135,19 +135,20 @@ def build_tree_from_nodes(node_list: List[Dict]):
     
     return root_nodes
 
-async def generate_node_summary_async(node: Dict, model_adapter: Any) -> str:
+async def generate_node_summary_async(node: Dict, model_adapter: Any, semaphore: asyncio.Semaphore) -> str:
     from data_agent_baseline.agents.model import ModelMessage
-    # Use only the first 2000 chars for summary to be fast
-    prompt = f"Summarize the following document section in one very short sentence (max 15 words). Focus on key entities.\n\nSection Content:\n{node['text'][:2000]}"
-    try:
-        # Wrap sync call in thread
-        response = await asyncio.to_thread(
-            model_adapter.complete, 
-            [ModelMessage(role="user", content=prompt)]
-        )
-        return response.strip()
-    except Exception:
-        return ""
+    async with semaphore:
+        # Use only the first 2000 chars for summary to be fast
+        prompt = f"Summarize the following document section in one very short sentence (max 15 words). Focus on key entities.\n\nSection Content:\n{node['text'][:2000]}"
+        try:
+            # Wrap sync call in thread
+            response = await asyncio.to_thread(
+                model_adapter.complete, 
+                [ModelMessage(role="user", content=prompt)]
+            )
+            return response.strip()
+        except Exception:
+            return ""
 
 async def generate_summaries_recursively_async(nodes: List[Dict], model_adapter: Any, max_summaries: int = 1000):
     all_nodes = []
@@ -165,7 +166,9 @@ async def generate_summaries_recursively_async(nodes: List[Dict], model_adapter:
     if not candidates:
         return nodes
     
-    tasks = [generate_node_summary_async(node, model_adapter) for node in candidates]
+    # Use a semaphore to limit concurrency to 10 (ideal for 4x A10)
+    semaphore = asyncio.Semaphore(10)
+    tasks = [generate_node_summary_async(node, model_adapter, semaphore) for node in candidates]
     summaries = await asyncio.gather(*tasks)
     
     for node, summary in zip(candidates, summaries):
