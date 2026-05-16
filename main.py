@@ -47,49 +47,59 @@ def setup_persistent_logging(log_dir: Path):
         sys.excepthook = handle_exception
 
 def main():
-    # Strict compliance with Official Technical Specifications
+    # Detect environment: Prioritize official evaluation paths
     EVAL_INPUT = Path("/input")
     EVAL_OUTPUT = Path("/output")
     EVAL_LOGS = Path("/logs")
 
-    # 1. Setup mandatory persistent logging to /logs/runtime.log (Spec 3.7)
-    setup_persistent_logging(EVAL_LOGS)
-    
-    print("=== Official Evaluation Startup ===")
-    print(f"Input path: {EVAL_INPUT}")
-    print(f"Output path: {EVAL_OUTPUT}")
-
-    # 2. Load application configuration
-    # Note: Sensitive configs (API Key, URL, Model Name) are read from env vars in config.py (Spec 3.5 & 5.2)
     root_dir = Path(__file__).resolve().parent
     config_path = root_dir / "configs" / "react_baseline.local.yaml"
     app_config = load_app_config(config_path)
 
-    # 3. Override configs with official evaluation paths
-    dataset_config = DatasetConfig(root_path=EVAL_INPUT)
-    run_config = RunConfig(
-        output_dir=EVAL_OUTPUT,
-        run_id="evaluation",
-        max_workers=app_config.run.max_workers,
-        task_timeout_seconds=app_config.run.task_timeout_seconds
-    )
-    app_config = AppConfig(
-        dataset=dataset_config,
-        agent=app_config.agent,
-        run=run_config
-    )
+    if EVAL_INPUT.exists():
+        print("=== Detected Official Evaluation Environment ===")
+        # 1. Setup mandatory persistent logging to /logs/runtime.log (Spec 3.7)
+        setup_persistent_logging(EVAL_LOGS)
+        
+        # 2. Override configs with official evaluation paths
+        dataset_config = DatasetConfig(root_path=EVAL_INPUT)
+        run_config = RunConfig(
+            output_dir=EVAL_OUTPUT,
+            run_id="evaluation",
+            max_workers=app_config.run.max_workers,
+            task_timeout_seconds=app_config.run.task_timeout_seconds
+        )
+        app_config = AppConfig(
+            dataset=dataset_config,
+            agent=app_config.agent,
+            run=run_config
+        )
+        use_flat_output = True
+    else:
+        print("=== Running in Local / Private Server Environment ===")
+        # In local environment, use paths from yaml or relative paths
+        if not app_config.dataset.root_path.exists():
+            # Auto-fallback to standard data structure if relative path in yaml is wrong
+            alternate_path = root_dir.parent / "public" / "input"
+            if alternate_path.exists():
+                dataset_config = DatasetConfig(root_path=alternate_path)
+                app_config = AppConfig(dataset=dataset_config, agent=app_config.agent, run=app_config.run)
+        
+        print(f"Input path: {app_config.dataset.root_path}")
+        print(f"Output path: {app_config.run.output_dir}")
+        use_flat_output = False # Local runs usually prefer timestamped folders
 
-    # 4. Run the benchmark (Spec 3.4 & 3.6)
-    # use_flat_output=True ensures /output/task_id/prediction.csv structure (Spec 2.1 & 2.4)
+    # Run the benchmark
     print("Starting benchmark evaluation loop...")
     run_output_dir, artifacts = run_benchmark(
         config=app_config, 
-        use_flat_output=True
+        use_flat_output=use_flat_output
     )
     
-    print(f"Benchmark finished.")
+    print(f"Benchmark finished. Run output: {run_output_dir}")
     print(f"Tasks attempted: {len(artifacts)}")
     print(f"Succeeded tasks: {sum(1 for item in artifacts if item.succeeded)}")
+
 
 
 
