@@ -22,7 +22,6 @@ from data_agent_baseline.config import AppConfig
 from data_agent_baseline.tools.registry import ToolRegistry, create_default_tool_registry
 from data_agent_baseline.wiki.engine import WikiEngine
 from data_agent_baseline.wiki.ingest import WikiIngestor
-from data_agent_baseline.wiki.retrieval import WikiRetriever
 
 
 # 记录单个任务运行结果的产物数据结构
@@ -104,6 +103,25 @@ def _failure_run_result_payload(task_id: str, failure_reason: str) -> dict[str, 
     }
 
 
+def _reset_wiki(wiki_engine: WikiEngine) -> None:
+    """Clear all wiki pages to ensure per-task isolation.
+
+    Each task must start with a fresh wiki so that knowledge extracted from
+    previous tasks does not leak into the current task's context.
+    """
+    import shutil
+    wiki_root = wiki_engine.root
+    for subdir in ("entities", "concepts", "sources", "syntheses", "overview"):
+        subdir_path = wiki_root / subdir
+        if subdir_path.exists():
+            shutil.rmtree(subdir_path)
+            subdir_path.mkdir(exist_ok=True)
+    # Reset index and log
+    (wiki_root / "index.md").write_text("# Wiki Index\n\n", encoding="utf-8")
+    (wiki_root / "log.md").write_text("# Wiki Operation Log\n\n", encoding="utf-8")
+    wiki_engine._invalidate_cache()
+
+
 def _run_single_task_core(
     *,
     task_id: str,
@@ -112,16 +130,31 @@ def _run_single_task_core(
     tools: ToolRegistry | None = None,
     task_output_dir: Path | None = None,
     wiki_engine: WikiEngine | None = None,
-    wiki_retriever: WikiRetriever | None = None,
 ) -> dict[str, Any]:
     public_dataset = DABenchPublicDataset(config.dataset.root_path)
     task = public_dataset.get_task(task_id)
 
-    # Retrieve wiki context for this task (reuse retriever if provided)
-    wiki_context = None
+    # Per-task wiki isolation: clear wiki, ingest THIS task's context, then retrieve.
+    # This prevents cross-task knowledge leaking — task_344 won't see task_11's
+    # extracted schemas. Each task only benefits from its own context data.
+    task_wiki_context = None
     if wiki_engine is not None and config.wiki.enabled:
-        retriever = wiki_retriever or WikiRetriever(wiki_engine)
-        wiki_context = retriever.build_context_string(
+        # 1. Reset wiki to ensure no cross-task contamination
+        _reset_wiki(wiki_engine)
+
+        # 2. Ingest this task's own context (CSV/JSON/SQLite schemas) into wiki
+        if config.wiki.auto_ingest:
+            try:
+                ingestor = WikiIngestor(wiki_engine)
+                ingestor.ingest_task(task, run_result=None)
+            except Exception as exc:
+                import sys
+                print(f"[WIKI] Pre-ingest failed for {task.task_id}: {exc}", file=sys.stderr)
+
+        # 3. Retrieve wiki context (only contains THIS task's data now)
+        from data_agent_baseline.wiki.retrieval import WikiRetriever
+        retriever = WikiRetriever(wiki_engine)
+        task_wiki_context = retriever.build_context_string(
             task.question, top_k=config.wiki.retrieval_top_k
         )
 
@@ -132,21 +165,11 @@ def _run_single_task_core(
         model=model or build_model_adapter(config),
         tools=effective_tools,
         config=ReActAgentConfig(max_steps=config.agent.max_steps),
-        wiki_context=wiki_context,
+        wiki_context=task_wiki_context,
     )
     run_result = agent.run(task, task_output_dir=task_output_dir)
 
-    # Ingest task results into wiki after completion
-    result_dict = run_result.to_dict()
-    if wiki_engine is not None and config.wiki.enabled and config.wiki.auto_ingest:
-        try:
-            ingestor = WikiIngestor(wiki_engine)
-            ingestor.ingest_task(task, run_result=result_dict)
-        except Exception as exc:
-            import sys
-            print(f"[WIKI] Ingest failed for {task.task_id}: {exc}", file=sys.stderr)
-
-    return result_dict
+    return run_result.to_dict()
 
 
 def _run_single_task_in_subprocess(task_id: str, config: AppConfig, result_file: str, task_output_dir: Path | None = None) -> None:
@@ -259,7 +282,6 @@ def run_single_task(
     model=None,
     tools: ToolRegistry | None = None,
     wiki_engine: WikiEngine | None = None,
-    wiki_retriever: WikiRetriever | None = None,
 ) -> TaskRunArtifacts:
     started_at = perf_counter()
     task_output_dir = run_output_dir / task_id
@@ -271,7 +293,6 @@ def run_single_task(
         run_result = _run_single_task_core(
             task_id=task_id, config=config, model=model, tools=tools,
             task_output_dir=task_output_dir, wiki_engine=wiki_engine,
-            wiki_retriever=wiki_retriever,
         )
     run_result["e2e_elapsed_seconds"] = round(perf_counter() - started_at, 3)
     return _write_task_outputs(task_id, run_output_dir, run_result)
@@ -306,9 +327,6 @@ def run_benchmark(
 
     task_ids = [task.task_id for task in tasks]
 
-    # Create shared retriever for cache reuse across tasks
-    shared_retriever = WikiRetriever(wiki_engine) if wiki_engine else None
-
     task_artifacts: list[TaskRunArtifacts]
     if effective_workers == 1:
         shared_model = model or build_model_adapter(config)
@@ -322,7 +340,6 @@ def run_benchmark(
                 model=shared_model,
                 tools=shared_tools,
                 wiki_engine=wiki_engine,
-                wiki_retriever=shared_retriever,
             )
             task_artifacts.append(artifact)
             if progress_callback is not None:
