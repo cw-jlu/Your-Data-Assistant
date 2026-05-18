@@ -53,7 +53,7 @@ def extract_nodes_from_markdown(markdown_content: str, max_chunk_lines: int = 15
     final_nodes = []
     for node in nodes:
         node_len = node['end_line'] - node['line_num'] + 1
-        if node_len > max_chunk_lines * 2:
+        if node_len > max_chunk_lines:
             if node['is_header']:
                 final_nodes.append(node)
             
@@ -65,15 +65,15 @@ def extract_nodes_from_markdown(markdown_content: str, max_chunk_lines: int = 15
                 # Search for a clean paragraph break (empty line) near the expected end
                 if expected_end < node['end_line']:
                     found_break = False
-                    # Look backward up to 50 lines
-                    for offset in range(0, min(50, expected_end - start_line)):
+                    # Look backward up to 30 lines
+                    for offset in range(0, min(30, expected_end - start_line)):
                         if not lines[expected_end - 1 - offset].strip():
                             actual_end = expected_end - offset
                             found_break = True
                             break
-                    # If not found, look forward up to 50 lines
+                    # If not found, look forward up to 30 lines
                     if not found_break:
-                        for offset in range(1, min(50, node['end_line'] - expected_end)):
+                        for offset in range(1, min(30, node['end_line'] - expected_end)):
                             if not lines[expected_end - 1 + offset].strip():
                                 actual_end = expected_end + offset
                                 break
@@ -81,13 +81,34 @@ def extract_nodes_from_markdown(markdown_content: str, max_chunk_lines: int = 15
                 title_prefix = "Content Section" if node['is_header'] else "Text Chunk"
                 child_level = node['level'] + 1 if node['is_header'] else node['level']
                 final_nodes.append({
-                    'title': f"{title_prefix} ({start_line}-{actual_end})",
+                    'title': f"{title_prefix} Part",
                     'line_num': start_line,
                     'end_line': actual_end,
                     'level': child_level,
                     'is_header': False
                 })
-                start_line = actual_end + 1
+                
+                if actual_end < node['end_line']:
+                    # Overlap ~15 lines, search for paragraph break
+                    expected_next_start = max(start_line + 1, actual_end - 15)
+                    next_start = expected_next_start
+                    
+                    found_start_break = False
+                    for offset in range(0, min(15, expected_next_start - start_line - 1)):
+                        if not lines[expected_next_start - 1 - offset].strip():
+                            next_start = expected_next_start - offset
+                            found_start_break = True
+                            break
+                            
+                    if not found_start_break:
+                        for offset in range(1, min(15, actual_end - expected_next_start)):
+                            if not lines[expected_next_start - 1 + offset].strip():
+                                next_start = expected_next_start + offset
+                                break
+                                
+                    start_line = next_start
+                else:
+                    break
         else:
             final_nodes.append(node)
             
@@ -138,7 +159,7 @@ def build_tree_from_nodes(node_list: List[Dict]):
 async def generate_node_summary_async(node: Dict, model_adapter: Any) -> str:
     from data_agent_baseline.agents.model import ModelMessage
     # Use only the first 2000 chars for summary to be fast
-    prompt = f"Summarize the following document section in one very short sentence (max 15 words). Focus on key entities.\n\nSection Content:\n{node['text'][:2000]}"
+    prompt = f"Summarize the following document section in 1-2 sentences (max 50 words). Focus on: numeric thresholds, business definitions, calculation rules, and key entity names.\n\nSection Content:\n{node['text'][:2000]}"
     try:
         # Wrap sync call in thread
         response = await asyncio.to_thread(
@@ -177,9 +198,8 @@ async def generate_summaries_recursively_async(nodes: List[Dict], model_adapter:
 def format_tree_for_roadmap(tree: List[Dict], indent: int = 0) -> List[str]:
     lines = []
     for node in tree:
-        summary = node.get('summary', '')
-        summary_str = f" - {summary}" if summary else ""
-        lines.append('  ' * indent + f"[{node['node_id']}] {node['title']} (lines {node['line_num']}-{node['end_line']}){summary_str}")
+        summary_text = f" - Summary: {node['summary']}" if node.get('summary') else ""
+        lines.append('  ' * indent + f"- {node['title']} (lines {node['line_num']}-{node['end_line']}){summary_text}")
         if 'nodes' in node and node['nodes']:
             lines.extend(format_tree_for_roadmap(node['nodes'], indent + 1))
     return lines
@@ -188,14 +208,14 @@ async def get_md_pageindex_summary_async(md_path: Path, model_adapter: Any = Non
     try:
         content = md_path.read_text(encoding="utf-8", errors="replace")
         # Disable chunking for knowledge.md so its business rules stay intact
-        chunk_lines = 999999 if md_path.name.lower() == "knowledge.md" else 150
+        chunk_lines = 999999 if md_path.name.lower() == "knowledge.md" else 80
         node_list, lines = extract_nodes_from_markdown(content, max_chunk_lines=chunk_lines)
         nodes_with_content = extract_node_text_content(node_list, lines)
         tree = build_tree_from_nodes(nodes_with_content)
         
         if model_adapter:
-            await generate_summaries_recursively_async(tree, model_adapter)
-        
+            tree = await generate_summaries_recursively_async(tree, model_adapter)
+            
         roadmap_lines = format_tree_for_roadmap(tree)
         return "\n".join(roadmap_lines)
     except Exception as e:
