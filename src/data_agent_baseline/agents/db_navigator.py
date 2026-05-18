@@ -65,6 +65,15 @@ def get_data_roadmap(context_dir: Path, model=None):
         for f in sorted(context_dir.rglob("*.md"))
         if "knowledge" in f.name.lower()
     ]
+    
+    other_docs = [
+        str(f.relative_to(context_dir).as_posix())
+        for f in sorted(context_dir.rglob("*.md"))
+        if "knowledge" not in f.name.lower()
+    ] + [
+        str(f.relative_to(context_dir).as_posix())
+        for f in sorted(context_dir.rglob("*.txt"))
+    ]
 
     # 2. 同名字段统计：出现在 2+ 个文件中的字段，全部列出
     all_columns = defaultdict(set)
@@ -90,6 +99,7 @@ def get_data_roadmap(context_dir: Path, model=None):
         ) if knowledge_docs else None,
         "data_assets": {
             "knowledge_docs": knowledge_docs,
+            "doc_files": other_docs,
             "databases": dbs,
             "csv_files": csvs,
             "json_files": jsons

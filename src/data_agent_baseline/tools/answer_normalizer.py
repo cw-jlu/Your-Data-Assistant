@@ -21,8 +21,17 @@ class ExpectedShape:
 
 
 def _normalize_cell(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        import math
+        if math.isnan(value):
+            return ""
     if isinstance(value, str):
-        return value.strip()
+        v = value.strip()
+        if v.lower() in ["null", "nan", "none", "na", "<na>", "\\n", "\\\n"]:
+            return ""
+        return v
     return value
 
 
@@ -51,6 +60,22 @@ def _infer_expected_shape(question: str) -> ExpectedShape | None:
         " disease" in f" {q}" or " diagnosis" in f" {q}"
     ):
         return ExpectedShape(3, "the question explicitly asks for three fields")
+
+    # --- CUSTOM PRESERVATION RULES FOR MULTI-COLUMN QUESTIONS ---
+    # 1. If the question explicitly asks for a website/url/funding type AND another name/reference/constructor:
+    if ("website" in q or "url" in q or "funding type" in q) and ("name" in q or "ref" in q or "constructor" in q or "driver" in q):
+        return None
+    # 2. If the question contains multiple sentences or instructions (separated by period, question mark, or exclamation):
+    import re
+    if len(re.split(r'\. |\? |! ', question.strip())) > 1:
+        return None
+    # 3. If the question contains " and " or " both ", it likely asks for multiple metrics/columns:
+    if " and " in q or " both " in q:
+        return None
+
+    # --- TALLY RULE TO PREVENT EXTRA COUNT COLUMNS ---
+    if "tally " in q or "tallying " in q:
+        return ExpectedShape(1, "tally questions should only return the aggregated items themselves unless counts are explicitly asked for")
 
     scalar_prefixes = (
         "what is ",

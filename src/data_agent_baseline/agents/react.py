@@ -318,6 +318,10 @@ class ReActAgent:
                         "error": tool_result.content.get("error", "Unknown tool error"),
                         "reflection_hint": obs_error
                     }
+                    if isinstance(tool_result.content, dict):
+                        for k in ["stderr", "output", "stdout"]:
+                            if k in tool_result.content:
+                                observation[k] = tool_result.content[k]
 
                 _log(f"Tool Result ({model_step.action}):\n{json.dumps(observation, ensure_ascii=False, indent=2)}")
                 
