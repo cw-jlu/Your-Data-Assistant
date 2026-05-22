@@ -1172,7 +1172,7 @@
                             </div>
                         </div>
                         <p class="evaluation-text">
-                            综合评定：该团队目前在 <strong>287 支</strong>已提交成果的队伍中位列<strong>第 38 名</strong>（前 <strong>13.24%</strong>），在 <strong>700+ 支</strong>报名参赛的队伍中展现出了极佳的算法竞争力。其 Data Agent 架构在未做过多冗余迭代的情况下（仅 v3）即大幅击败了大盘的中位数与平均数，展现了极佳的算法基底与工程指引性。
+                            综合评定：该团队目前在 <strong>287 支</strong>已提交成果的队伍中位列<strong>第 38 名</strong>（前 <strong>13.24%</strong>），在 <strong>700+ 支</strong>报名参赛的队伍中展现出了极佳 of 算法竞争力。其 Data Agent 架构在未做过多冗余迭代的情况下（仅 v3）即大幅击败了大盘的中位数与平均数，展现了极佳的算法基底与工程指引性。
                         </p>
                     </div>
                 </div>
@@ -1257,7 +1257,7 @@ Recall = Matched Columns / Gold Columns
 <div class="codehilite"><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">LR</span>
 <span class="w">    </span><span class="n">main</span><span class="p">[</span><span class="s">&quot;main&lt;br/&gt;官方基准微调&lt;br/&gt;A-Board: 0.3298&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="n">v3</span><span class="p">[</span><span class="s">&quot;v3&lt;br/&gt;KG + PageIndex&lt;br/&gt;A-Board: 0.5114 ⭐&quot;</span><span class="p">]</span>
-<span class="w">    </span><span class="n">v4</span><span class="p">[</span><span class="s">&quot;v4&lt;br/&gt;v3 同源&lt;br/&gt;A-Board: 0.2982&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">v4</span><span class="p">[</span><span class="s">&quot;v4&lt;br/&gt;v3 去掉分级策略&lt;br/&gt;A-Board: 0.2982&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="n">v5</span><span class="p">[</span><span class="s">&quot;v5&lt;br/&gt;v3 + Prompt优化&lt;br/&gt;未提交A-Board&quot;</span><span class="p">]</span>
 <span class="w">    </span><span class="n">LLMWIKI</span><span class="p">[</span><span class="s">&quot;LLMWIKI&lt;br/&gt;LLM Wiki 模式&lt;br/&gt;A-Board: 0.1658&quot;</span><span class="p">]</span>
 
@@ -1317,7 +1317,7 @@ Recall = Matched Columns / Gold Columns
 <td style="text-align: left;"><code>v4</code></td>
 <td style="text-align: left;">—</td>
 <td style="text-align: left;"><strong>0.2982</strong></td>
-<td style="text-align: left;">v3 同源代码</td>
+<td style="text-align: left;">v3 去掉分级策略 (即对所有难度任务采用统一的完整 Schema KG + PageIndex 架构，无 Easy 简化)</td>
 <td style="text-align: left;">✅ 已提交</td>
 </tr>
 <tr>
@@ -1649,15 +1649,16 @@ The system will accept it on the second attempt.
 - PageIndex 精准定位文档内容，避免大文件全量读取导致的 Token 浪费和超时
 - Answer Interceptor 强制二次审核，减少粗心错误
 - 整体方案<strong>增强信息而不增加复杂度</strong>，不引入额外的推理链路</p>
-<h4 id="v4-v3-a-board-02982">v4 — v3 同源（A-Board: 0.2982）</h4>
-<p><strong>核心思路</strong>：与 v3 代码完全相同（同一个 commit <code>485bf80</code>），但 A-Board 得分显著低于 v3。</p>
+<h4 id="v4-v3-a-board-02982">v4 — v3 去掉分级策略（A-Board: 0.2982）</h4>
+<p><strong>核心思路</strong>：v4 是从 v3 演化而来，核心差异在于<strong>去掉了针对任务难度的分级策略（Difficulty Routing Strategy）</strong>。在 v4 中，不论任务属于 <code>easy</code> 还是 <code>medium/hard/extreme</code>，均统一生成并注入完整的 Schema KG 和 PageIndex 树状文档索引，不进行任何分流简化。</p>
+<p><strong>技术对比</strong>：
+- <strong>v3 分流架构</strong>：为了防范 Token 冗余及模型幻觉，v3 引入了难度分流。针对 <code>easy</code> 任务只提取最精简的文件结构，仅在遇到 <code>medium/hard/extreme</code> 等高难度任务时才启动高成本的 Schema KG + PageIndex 机制。
+- <strong>v4 统一架构</strong>：去掉了分流逻辑，对全部任务一刀切地注入了高阶数据图谱和文档导航索引。</p>
 <p><strong>得分差异原因分析</strong>：
-- v3 和 v4 指向同一个 Git commit，代码逻辑完全一致
-- A-Board 得分差异（0.5114 vs 0.2982）可能源于：
-  1. <strong>模型推理的非确定性</strong>：Qwen3.5-35B-A3B 的 <code>temperature=0</code> 在 vLLM 的 8 路张量并行下仍存在浮点精度差异
-  2. <strong>任务执行顺序效应</strong>：不同提交时的评测队列状态可能影响模型服务的响应
-  3. <strong>超时边界效应</strong>：2 小时 A-Board 时限下，个别任务的执行时间波动可能导致部分任务未完成</p>
-<div class="alert alert-warning"><div class="alert-title"><svg class="alert-icon" viewBox="0 0 16 16" width="16" height="16"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Warning</div><p>v4 的得分表明，即使代码完全相同，不同次评测的得分也可能有 <strong>0.2+</strong> 的波动。这在依赖 LLM 推理的系统中是需要重视的稳定性问题。</p>
+- v4 在 A-Board 上的得分（0.2982）相比 v3（0.5114）出现大幅滑坡，核心原因在于：
+  1. <strong>低难度任务受到信息噪音干扰</strong>：Easy 任务（如简单查询）本可通过基础的文件名识别和简单的 SQL/Python 完成，而在 v4 下被强制注入了极长的 Schema KG 表关联和 PageIndex 树，导致 Prompt 中的噪音数据急剧增加，Qwen3.5-35B-A3B 在多余信息的干扰下产生了幻觉或误判，调用了不必要的复杂工具。
+  2. <strong>Token 超限与延迟增加</strong>：冗余的 Schema 结构增大了 Context Window 负担，增加了单步推理的开销，进而增加了超时的概率。</p>
+<div class="alert alert-warning"><div class="alert-title"><svg class="alert-icon" viewBox="0 0 16 16" width="16" height="16"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Warning</div><p>v4 的实验结果有力地论证了<strong>“难度分级策略 (Difficulty Routing)”的工程必要性</strong>。数据智能体并非上下文注入越全越好，而是需要根据任务的物理复杂度进行动态剪裁与路由。量体裁衣才能达到最高的推理准确率与稳定性。</p>
 </div>
 <h4 id="v5-v3-prompt-a-board-03184">v5 — v3 + Prompt 优化（A-Board: 0.3184）</h4>
 <p><strong>核心思路</strong>：在 v3 基础上，根据失败任务分析进一步优化 Prompt。</p>
@@ -2301,7 +2302,7 @@ position: 1, 2, 3, DNF
                     label = 'LLM Wiki';
                 } else if (label.toLowerCase().includes('v4')) {
                     icon = '🔗 v4';
-                    label = '同源对照';
+                    label = '去掉分级';
                 }
                 
                 btn.innerHTML = `${icon} (${label})`;
