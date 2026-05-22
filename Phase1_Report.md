@@ -62,22 +62,22 @@ Agent 在每一步输出一个 JSON 对象，包含 `thought`（推理）、`act
 
 ```mermaid
 graph LR
-    main["main<br/>官方基准微调<br/>A-Board: 0.3298"]
-    v3["v3<br/>KG + PageIndex<br/>A-Board: 0.5114 ⭐"]
+    main["v1 / main<br/>官方基准微调<br/>A-Board: 0.3298"]
+    v3["v3<br/>Schema KG + PageIndex<br/>A-Board: 0.5114 ⭐"]
     v4["v4<br/>v3 去掉分级策略<br/>A-Board: 0.2982"]
-    v5["v5<br/>v3 + Prompt优化<br/>未提交A-Board"]
-    LLMWIKI["LLMWIKI<br/>LLM Wiki 模式<br/>A-Board: 0.1658"]
+    v5["v5 / LLMWIKI<br/>LLM Wiki 预处理<br/>A-Board: 0.1658"]
+    v6["v6 / v5分支<br/>v3 + Prompt优化<br/>A-Board: 0.3184"]
     
     main --> v3
     v3 --> v4
-    v3 --> v5
-    main --> LLMWIKI
+    v3 --> v6
+    main --> v5
     
     style v3 fill:#2d6a4f,stroke:#1b4332,color:#fff
     style main fill:#264653,stroke:#2a9d8f,color:#fff
     style v4 fill:#6c757d,stroke:#495057,color:#fff
-    style v5 fill:#457b9d,stroke:#1d3557,color:#fff
-    style LLMWIKI fill:#e76f51,stroke:#e63946,color:#fff
+    style v5 fill:#e76f51,stroke:#e63946,color:#fff
+    style v6 fill:#457b9d,stroke:#1d3557,color:#fff
 ```
 
 ---
@@ -88,10 +88,10 @@ graph LR
 
 | 版本 | 分支 | 公开测试集得分 (本地) | A-Board 得分 | 核心技术 | 提交状态 |
 |:---|:---|:---|:---|:---|:---|
-| **v3** | `v3` | 53.50% (S: 56.91%) | **0.5114** ⭐ | **PageIndex** (Schema KG + PageIndex + Interceptor) | ✅ 已提交，最优 |
+| **v3** | `v3` | 53.50% (S: 56.91%) | **0.5114** ⭐ | **Schema KG + PageIndex** (含 Answer 拦截校验) | ✅ 已提交，最优 |
 | **v1** | `main` | 72.38% | **0.3298** | **官方 Starter Kit 微调** (无高级 Schema 导航) | ✅ 已提交 |
 | **v6** | `v5` | 64.00% | **0.3184** | **Schema KG + PageIndex + Prompt 优化** | ✅ 已提交 |
-| **v4** | `v4` | — | **0.2982** | **PageIndex 去掉分级策略** (全量注入 Schema KG + PageIndex) | ✅ 已提交 |
+| **v4** | `v4` | — | **0.2982** | **v3 去掉分级策略** (全量注入 Schema KG + PageIndex) | ✅ 已提交 |
 | **v5** | `LLMWIKI` | 59.50% (S: 64.67%) | **0.1658** | **LLM Wiki 预处理模式** (Andrej Karpathy 思想) | ✅ 已提交 |
 | exp/* | 实验分支 | 较低 | — | 向量检索 (PageRAG) / 图检索 (GraphRAG) | ❌ 未提交 |
 
@@ -101,7 +101,7 @@ graph LR
 > **公开测试集得分与 A-Board 隐藏集得分严重不相关。**
 > 
 > - v5（LLMWIKI）在公开测试集上得分较高（S: 64.67%），但 A-Board 仅 0.1658，排名最低
-> - v3（PageIndex）在公开测试集上总体得分为 53.50%（成功率 56.91%），但 A-Board 高达 0.5114
+> - v3（Schema KG + PageIndex）在公开测试集上总体得分为 53.50%（成功率 56.91%），但 A-Board 高达 0.5114
 > - main（v1）公开集 72.38%，A-Board 0.3298
 > - v6（v5 分支）公开集 64.00%，A-Board 0.3184
 > 
@@ -611,9 +611,9 @@ def ingest_task(self, task, run_result=None):
 
 #### 1. 各方案在公开测试集上的整体表现（Side-by-side Comparison）
 
-我们将我们的统一架构版本（运行ID: `20260518T123626Z`，即 v6 / v5 分支方案）与 v3 (PageIndex baseline)、v5 (Wiki baseline) 进行了多维度对比：
+我们将我们的统一架构版本（运行ID: `20260518T123626Z`，即 v6 / v5 分支方案）与 v3 (Schema KG + PageIndex)、v5 (Wiki baseline) 进行了多维度对比：
 
-| 评估指标 | v3 (PageIndex baseline) | v5 (Wiki baseline) | v6 (v5 分支 / 64.00% 统一架构) |
+| 评估指标 | v3 (Schema KG + PageIndex) | v5 (Wiki baseline) | v6 (v5 分支 / 64.00% 统一架构) |
 | :--- | :--- | :--- | :--- |
 | **总测试任务数** | 50 | 50 | 50 |
 | **执行成功率 (完赛率)** | 94.00% (47/50) | 92.00% (46/50) | **100.00% (50/50)** ⭐ |
@@ -624,19 +624,19 @@ def ingest_task(self, task, run_result=None):
 
 > [!NOTE]
 > **核心结论：**
-> 1. **工程鲁棒性（Robustness）显著提升**：在评测环境与资源约束下，`Pageindex baseline` 和 `Wiki baseline` 均出现了任务超时或因上下文超限（BadRequestError）导致的 API 崩溃。本方案通过引入“难度分级路由”和“历史压缩”机制，成功克服了 Token 溢出与无限重试死循环，实现了 **100.00% 的完赛率**。
-> 2. **整体正确率（Average Score）领先**：由于高完赛率和拦截器重构，本方案在 50 个任务上的总得分达到 **0.6400**，明显高于两套基线。
+> 1. **工程鲁棒性（Robustness）显著提升**：在评测环境与资源约束下，`v3 (Schema KG + PageIndex)` 和 `Wiki baseline` 均出现了任务超时或因上下文超限（BadRequestError）导致的 API 崩溃。本方案通过引入“难度分级路由”和“历史压缩”机制，成功克服了 Token 溢出与无限重试死循环，实现了 **100.00% 的完赛率**。
+> 2. **整体正确率（Average Score）领先**：由于高完赛率 and 拦截器重构，本方案在 50 个任务上的总得分达到 **0.6400**，明显高于两套基线。
 
 #### 2. 关键任务级行为差异（Task-Level Divergence）深度诊断
 
 为进一步定位智能体决策的底层差异，我们对三套运行日志进行了单步追踪，发现了几个极其显著的行为分歧：
 
-*   **PageIndex Baseline 的数据类型与去重缺陷**：
+*   **v3 (Schema KG + PageIndex) 的数据类型与去重缺陷**：
     *   **`task_243`（计算用户24的帖子/投票比率）**：
-        *   *PageIndex baseline* 得分为 `0.0`。原因在于其生成的 Python 代码将用户 ID 进行了强制字符串转换：`votes_df['UserId'].astype(str) == '24'`。但由于 `UserId` 列在 pandas 读取 CSV 时被自动推导为 `float64`（存在字面量 `24.0`），转换后的字符串为 `'24.0'`，导致与 `'24'` 比对永远返回 False（即 0 票），引发了除以零的计算崩溃。
+        *   *v3 (Schema KG + PageIndex)* 得分为 `0.0`。原因在于其生成的 Python 代码将用户 ID 进行了强制字符串转换：`votes_df['UserId'].astype(str) == '24'`。但由于 `UserId` 列在 pandas 读取 CSV 时被自动推导为 `float64`（存在字面量 `24.0`），转换后的字符串为 `'24.0'`，导致与 `'24'` 比对永远返回 False（即 0 票），引发了除以零的计算崩溃。
         *   *本方案 (20260518T123626Z)* 得分为 `1.0`。智能体直接进行了数值类型安全的比较：`df['UserId'] == 24`，成功匹配 float `24.0` 与 int `24`，检索出 8 票并计算出正确率 `0.375`。
     *   **`task_86`（查询 Alex Yoong 参赛名次低于 20 的比赛）**：
-        *   *PageIndex baseline* 得分为 `0.0`。其生成的过滤逻辑在 driver ID `'62'`（应为数值 62）上因类型比对失败返回空数据，随后纠正代码后却在去重步骤上遗漏。它导出了包含重复比赛的 17 行结果（例如 2001 和 2002 年日本大奖赛由于不同年度的记录重复出现），而标准答案仅期望唯一的赛道名。
+        *   *v3 (Schema KG + PageIndex)* 得分为 `0.0`。其生成的过滤逻辑在 driver ID `'62'`（应为数值 62）上因类型比对失败返回空数据，随后纠正代码后却在去重步骤上遗漏。它导出了包含重复比赛的 17 行结果（例如 2001 和 2002 年日本大奖赛由于不同年度的记录重复出现），而标准答案仅期望唯一的赛道名。
         *   *本方案 (20260518T123626Z)* 得分为 `1.0`。智能体在合并查询后使用 `unique()` 进行了去重，输出了恰好 16 个唯一的比赛名称。
 *   **Wiki Baseline 与本方案的语义分歧与局限**：
     *   **`task_408`（澳大利亚大奖赛冠军与最后一名的时间百分比差异）**：
@@ -665,9 +665,9 @@ def ingest_task(self, task, run_result=None):
 为满足导师汇报的严谨学术要求，我们对三个核心版本的失分/运行故障任务进行了全量单步排查。以下是每个版本的详细失败案例诊断（点击下方卡片可展开查看完整明细）：
 
 <details class="premium-details">
-    <summary class="premium-summary">📂 点击展开/收起：v3 (PageIndex Baseline) 失败与不完美任务明细 (共 24 个)</summary>
+    <summary class="premium-summary">📂 点击展开/收起：v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 24 个)</summary>
     <div class="details-content">
-        <h4 id="failed-tasks-v3">v3 (PageIndex Baseline) 失败与不完美任务明细 (共 25 个)</h4>
+        <h4 id="failed-tasks-v3">v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 25 个)</h4>
 <table class="failed-tasks-table">
     <thead>
         <tr>
@@ -1440,7 +1440,7 @@ def ingest_task(self, task, run_result=None):
 | 序号 | 版本 | 分支 | 提交时间 | A-Board 得分 | 备注 |
 |:---|:---|:---|:---|:---|:---|
 | 1 | v1 | main | Phase 1 早期 | 0.3298 | 官方基准微调 |
-| 2 | v3 | v3 | Phase 1 中期 | **0.5114** | PageIndex 基准 (最高分) |
+| 2 | v3 | v3 | Phase 1 中期 | **0.5114** | Schema KG + PageIndex 基准 (最高分) |
 | 3 | v4 | v4 | Phase 1 中期 | 0.2982 | v3 去掉分级策略版本 |
 | 4 | v5 | LLMWIKI | Phase 1 后期 | 0.1658 | LLM Wiki 模式 |
 | 5 | v6 | v5 | Phase 1 后期 | 0.3184 | Schema KG + PageIndex + Prompt 优化 |
