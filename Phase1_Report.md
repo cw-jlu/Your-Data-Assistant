@@ -118,6 +118,55 @@ graph LR
 - **优势**：代码简洁，运行稳定，无额外依赖
 - **劣势**：缺乏跨表关联感知，Agent 对数据结构理解有限
 
+**System Prompt 原文（main 分支）**：
+
+```text
+You are a ReAct-style data agent.
+You are solving a task from a public dataset. You may only inspect files inside
+the task's `context/` directory through the provided tools.
+
+Rules:
+1. Use tools to inspect the available context before answering.
+2. Base your answer only on information you can observe through the provided tools.
+3. The task is complete only when you call the `answer` tool.
+4. The `answer` tool must receive a table with `columns` and `rows`.
+5. Always return exactly one JSON object with keys `thought`, `action`, `action_input`.
+6. Always wrap that JSON object in exactly one fenced code block (```json ... ```).
+7. Do not output any text before or after the fenced JSON block.
+8. Strictly match tools with file types. Only use SQL tools for .db files.
+9. If you encounter "no such table" error, stop using SQL and use execute_python.
+10. When using execute_python, action_input must be a JSON object with key "code".
+11. Never pass raw string directly to execute_python action_input.
+12. WARNING: read_csv/read_json/read_doc ONLY return truncated previews (max 20 rows).
+13. IMPORTANT: To process full datasets, you MUST use execute_python.
+Keep reasoning concise and grounded in the observed data.
+```
+
+**关键代码：`react.py` 的 JSON 解析（main 分支）**
+
+main 分支的解析函数只有基础的 strip + json.loads，没有任何容错处理：
+
+```python
+def _strip_markdown_code_blocks(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if len(lines) > 2 and lines[0].startswith("```") and lines[-1].startswith("```"):
+            return "\n".join(lines[1:-1])
+    return text
+
+def parse_model_step(raw_response: str) -> dict[str, Any]:
+    cleaned_text = _strip_markdown_code_blocks(raw_response)
+    try:
+        return json.loads(cleaned_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse model response as JSON: {cleaned_text}") from e
+```
+
+一旦 Qwen 输出含有字面换行符（`\n` 未转义）或 JSON 被截断，整步直接报错，连续失败后触发熔断。
+
+**main 分支无 Data Roadmap**：Agent 只看到任务问题，没有预先给定任何数据 Schema 信息，完全靠自身先用工具探索再推理。
+
 #### v3 — Schema KG + PageIndex（A-Board: 0.5114 ⭐ 最高分）
 
 **核心思路**：通过预计算的 Schema 知识图谱和文档索引树，让 Agent 在推理前就掌握数据全貌。
@@ -147,6 +196,231 @@ graph LR
 5. **JSON 鲁棒性**
    - Greedy Brace Fix：从截断的 JSON 响应中自动恢复
    - 字面换行符转义：处理 Qwen 输出中的非标准格式
+
+**System Prompt 完整原文（v3 分支）**：
+
+```text
+You are an elite Data Agent. Your goal is to solve data extraction tasks with 100% precision.
+
+### CORE OPERATING PRINCIPLES
+1. Logic Audit (Mandatory): Before executing any code, you MUST state your formula in `thought`.
+   - Example: "Logic: Unit_Price = Price / Amount. Target: Unit_Price > 29."
+2. Exhaustive Search: Unless asked for "the only one", always assume multiple matches exist.
+   Return ALL relevant rows.
+3. Type-Safe Alignment: Always use `.astype(str)` when joining or filtering columns.
+4. Knowledge Primacy: Always check `knowledge.md` for business definitions.
+5. Large File Strategy: For files >1MB, use read_csv/read_doc only for schema sampling.
+   To process full data, you MUST use execute_python.
+6. No Laziness: Do not assume data based on previews. Always verify from full dataset.
+
+### TOOL RULES
+- SQL: Use ONLY for .db files.
+- Python: Use execute_python with code_lines. Always print results clearly.
+- answer: ONLY include columns specifically asked for. Extra columns = 50% score deduction.
+
+### OUTPUT SPECIFICATION
+- Return exactly one JSON object inside a ```json block.
+- Fields: thought, reflection, data_sufficient, action, action_input.
+- No text outside the JSON block.
+
+### DATA ROADMAP
+Below is the schema and relationship map. Use it to identify join paths.
+```
+
+与 main 分支相比，v3 的 System Prompt 新增了：
+- `reflection` 字段（让 Agent 在每步显式进行自我审视）
+- `data_sufficient` 字段（让 Agent 明确标记是否已有足够数据）
+- 明确强调 "Extra columns = 50% score deduction"
+- 接尾的 `### DATA ROADMAP` 标记，引导后续动态数据地图的拼接
+
+**db_navigator.py 核心代码**：
+
+```python
+def get_data_roadmap(context_dir: Path, model=None):
+    dbs = _scan_databases(context_dir)   # 扫描 .db: 表名、列名、外键、row_count
+    csvs, jsons = _get_csv_json_schemas(context_dir)
+
+    # 主动优先列出 knowledge 文档
+    knowledge_docs = [
+        str(f.relative_to(context_dir).as_posix())
+        for f in sorted(context_dir.rglob("*.md"))
+        if "knowledge" in f.name.lower()
+    ]
+
+    # 跨文件同名字段统计（不过滤、不分类，全量列出）
+    all_columns = defaultdict(set)
+    for db in dbs:
+        for t_meta in db["tables"].values():
+            for col in t_meta["columns"]:
+                all_columns[col.lower()].add(db["path"])
+    for csv_f in csvs:
+        for col in csv_f["columns"]:
+            all_columns[col.lower()].add(csv_f["path"])
+
+    shared_fields = {
+        k: sorted(v)
+        for k, v in sorted(all_columns.items(), key=lambda x: -len(x[1]))
+        if len(v) > 1   # 出现在 2+ 个文件中的才列出
+    }
+
+    roadmap = {
+        "IMPORTANT": "READ knowledge_docs FIRST before writing any query or code. ...",
+        "data_assets": {
+            "knowledge_docs": knowledge_docs,
+            "databases": dbs,      # 含 row_count, columns, foreign_keys
+            "csv_files": csvs,
+            "json_files": jsons
+        },
+        "relationships": {
+            "shared_fields": shared_fields,
+            "note": "Fields appearing in 2+ files — use as JOIN hints..."
+        }
+    }
+    return "=== DATA ROADMAP (SCHEMA & RELATIONS ONLY) ===\n" + json.dumps(roadmap, indent=2)
+```
+
+实际注入给 Agent 的 Data Roadmap 示例（赛车题目场景）：
+
+```json
+=== DATA ROADMAP (SCHEMA & RELATIONS ONLY) ===
+{
+  "IMPORTANT": "READ knowledge_docs FIRST...",
+  "data_assets": {
+    "knowledge_docs": ["context/knowledge.md"],
+    "databases": [{
+      "path": "db/data.db",
+      "tables": {
+        "results": {
+          "columns": ["resultId","raceId","driverId","points","position"],
+          "foreign_keys": [{"from":"raceId","to_table":"races","to_column":"raceId"}],
+          "row_count": 25840
+        }
+      }
+    }],
+    "csv_files": [{"path":"csv/races.csv","columns":["raceId","year","name"]}]
+  },
+  "relationships": {
+    "shared_fields": {
+      "raceid": ["csv/races.csv","db/data.db"],
+      "driverid": ["db/data.db"]
+    }
+  }
+}
+```
+
+**PageIndex 工作原理（pageindex_lite.py）**：
+
+对 Markdown 文档按标题层级提取节点（逐行扫描，检测 `# ##` 等）并构建树，每个节点记录 `line_num`、`end_line`、`title`。超长节点（>300行）被自动拆分为 150 行的子 chunk，并在段落边界处断开。
+
+最终注入给 Agent 的文档树形式：
+
+```text
+=== PAGEINDEX TREE STRUCTURES ===
+Document: doc/knowledge.md
+[0001] Business Definitions (lines 1-80)
+  [0002] Scoring Rules (lines 10-40) - Describes how points are allocated per race position
+  [0003] DNF Definition (lines 41-55) - DNF means Did Not Finish; counts as 0 points
+[0004] Race Calendar (lines 81-200)
+  ...
+```
+
+Agent 可精准调用 `read_doc_lines(file="doc/knowledge.md", start=41, end=55)` 直接取目标段落，无需读全文。
+
+**Answer Interceptor 完整原文**：
+
+```text
+[SYSTEM INTERCEPT] FINAL VERIFICATION REQUIRED
+
+You have called the `answer` tool. Before your answer is permanently submitted,
+you MUST perform a final verification.
+
+Please review your proposed answer against the following checklist:
+1. Formatting: Does your final output exactly match the requested columns and rows?
+   Do NOT include extra explanatory columns.
+2. Aggregation: Did the question ask for SUM, AVG, or Percentage? Ensure math
+   strictly follows business logic (percentages need to be multiplied by 100).
+3. Time Reference: If calculating age or duration, use the current year 2026
+   unless explicitly stated otherwise in the document.
+4. Knowledge Rules: Did you consult knowledge.md to confirm exact thresholds
+   (e.g., 'abnormal') before filtering the data?
+
+If you find ANY errors, DO NOT call answer yet. Use Python to fix your data.
+If you are 100% confident, call the answer tool AGAIN with the EXACT SAME data.
+The system will accept it on the second attempt.
+```
+
+**JSON 鲁棒解析（v3 react.py，对比 main 的一行 json.loads）**：
+
+```python
+def _strip_json_fence(raw_response: str) -> str:
+    text = raw_response.strip()
+    # 优先匹配 ```json ... ```
+    fence_match = re.search(r"```json\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fence_match: return fence_match.group(1).strip()
+    # 降级：匹配任意 ``` ... ```
+    generic = re.search(r"```\s*(.*?)\s*```", text, flags=re.DOTALL)
+    if generic: return generic.group(1).strip()
+    # 最后兜底：从文本中提取最外层 { ... }
+    brace = re.search(r"(\{.*\})", text, flags=re.DOTALL)
+    if brace: return brace.group(1).strip()
+    return text
+
+def _escape_literal_newlines_in_strings(text: str) -> str:
+    """逐字符扫描，将 JSON 字符串内的裸换行符转义为 \\n"""
+    repaired: list[str] = []
+    in_string = False
+    escape = False
+    for char in text:
+        if in_string:
+            if escape: repaired.append(char); escape = False; continue
+            if char == "\\": repaired.append(char); escape = True; continue
+            if char == '"': repaired.append(char); in_string = False; continue
+            if char == "\n": repaired.append("\\n"); continue
+            if char == "\r": repaired.append("\\r"); continue
+        else:
+            if char == '"': in_string = True
+        repaired.append(char)
+    return "".join(repaired)
+
+def _load_json_object(text: str) -> dict:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        repaired = _escape_literal_newlines_in_strings(text)
+        return json.loads(repaired)  # 二次尝试
+```
+
+**react.py 的难度分流策略（v3 独有）**：
+
+```python
+def run(self, task: PublicTask, task_output_dir=None) -> AgentRunResult:
+    if task.difficulty == "easy":
+        # easy 任务只给文件列表，避免 Token 过载
+        context_tree = list_context_tree(task, max_depth=2)
+        data_roadmap = "=== DATA ROADMAP (SIMPLIFIED) ===\n" + json.dumps(context_tree)
+    elif task.difficulty in ("medium", "hard", "extreme"):
+        # 中高难度：Schema KG + PageIndex 双层信息
+        base_roadmap = get_data_roadmap(task.context_dir, model=self.model)
+        pageindex_roadmap = get_pageindex_roadmap(task.context_dir, model_adapter=self.model)
+        data_roadmap = f"{base_roadmap}\n\n{pageindex_roadmap}"
+    # ... ReAct 主循环
+```
+
+**历史压缩代码（v3 独有，main 无此逻辑）**：
+
+```python
+# 只有当失败序列"尘埃落定"（即后面出现了成功步骤）时，才折叠
+if j > i + 1 and j < len(state.steps):
+    failure_count = j - i
+    last_failure = state.steps[j-1]
+    payload = json.loads(_strip_json_fence(last_failure.raw_response))
+    payload["thought"] = f"[System: {failure_count-1} previous failed attempts omitted] " \
+                         + payload.get("thought", "")
+    new_raw = f"```json\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n```"
+    # 用修改后的最后一条替换整个失败序列
+    compact_steps.append(StepRecord(..., raw_response=new_raw, ...))
+    i = j  # 跳过整个失败段
+```
 
 **为什么 v3 得分最高**：
 - Schema KG 让 Agent 从第一步就知道"数据在哪、怎么关联"，大幅减少盲目探索
@@ -183,6 +457,37 @@ graph LR
 - "改进后得分反降"现象在 LLM Agent 中常见：**局部优化可能破坏全局平衡**
 - 公开测试集上 v5 和 v3 得分相同（64%），说明改进主要影响边缘案例
 
+**v5 vs v3：System Prompt 精确差异（git diff）**
+
+v5 在 v3 的 6 条原则基础上新增了 6 条（规则 7-12），以下为精确 diff：
+
+```diff
+ 6. **No Laziness**: Do not assume data based on previews. Always verify counts and values from the full dataset via code.
++7. **No Truncation**: NEVER truncate or slice variables (e.g. `text[:100]`) in your Python
++   code if you intend to copy-paste or submit them in the final `answer` tool call.
++8. **SQL Flat-Join Semantics**: When a question asks for aggregates on "entity A in
++   molecules/groups containing B", this always maps to simple flat SQL filters where
++   filters are applied to rows before counting (e.g., WHERE bond_type = '#' AND element = 'p').
++9. **Bidirectional Deduplication**: Always check if relationship tables (e.g., connected.csv)
++   are bidirectional (A->B and B->A). Deduplicate them (e.g., atom_id < atom_id2).
++10. **NO MANUAL HARDCODING**: When extracting data from unstructured documents, do not
++    visually read and hardcode the data. Write regex or pandas scripts to parse programmatically.
++11. **Time/Numeric Sorting Safety**: Sorting string representations of times (e.g., '1:12.345')
++    alphabetically is forbidden. Parse them to float seconds before sorting.
++12. **Boundary Inequality Checking**: For "less than 70", use `< 70`, NEVER `<= 70`
++    unless explicitly authorized by knowledge.md.
+```
+
+这 6 条规则每条都来自具体的失败案例（见 `failed_tasks_analysis.md`）：
+- 规则 7 → task_180（只提交了前 20 行）
+- 规则 8 → task_86（选了错误的表）
+- 规则 9 → task_200（未去重对称键）
+- 规则 10 → task_396（正则地狱死循环）
+- 规则 11 → task_89（时间字符串排序错）
+- 规则 12 → task_344（用了医学常识范围而不是 knowledge.md）
+
+**为何 v5 比 v3 得分低**：这 6 条规则过于针对特定数据集，使得 Prompt 总 Token 数增加约 15%（从约 2KB 增至约 2.3KB），且对 Qwen 产生了更严格的约束，可能限制了其在其他任务上的灵活推理。
+
 #### v6 / LLMWIKI — LLM Wiki 模式（A-Board: 0.1658）
 
 **核心思路**：受 Andrej Karpathy 的 LLM Wiki 思想启发，让 Agent 在执行前先通过 LLM 生成数据的 Wiki 式描述。
@@ -190,6 +495,82 @@ graph LR
 **关键技术**：
 - **LLM Wiki 预处理**：在任务开始前，调用 LLM 对每个数据源生成结构化的 Wiki 描述
 - 基于 `main` 分支构建，补充了 `use_flat_output` 和 `DualLogger` 合规性补丁
+
+**LLM Wiki 架构详解**：
+
+整个 LLMWIKI 方案分为三层：
+
+```
+任务启动
+  │
+  ▼
+WikiIngestor.ingest_task(task)      ← 预处理阶段（最致命的时间消耗）
+  │  - 扫描 context/ 下所有文件
+  │  - 对每个 DB 表/CSV 调用 LLM 生成 Schema 摘要
+  │  - 对每个 .md 文件调用 LLM 生成内容摘要
+  │  - 写入 wiki/ 目录的 Markdown 文件（YAML frontmatter）
+  │
+  ▼
+ReAct Agent 开始推理
+  │  - 系统提示词额外注入 wiki 工具描述
+  │  - Agent 可调用 wiki_search / wiki_get_page / wiki_list_index
+  │
+  ▼
+提交答案
+```
+
+**Wiki Page 数据结构（engine.py）**：
+
+```python
+@dataclass
+class WikiPage:
+    title: str
+    page_type: str  # entity, concept, source, synthesis, overview
+    tags: list[str]
+    sources: list[str]
+    confidence: str = "EXTRACTED"  # EXTRACTED, INFERRED, AMBIGUOUS, UNVERIFIED
+    content: str = ""
+```
+
+Wiki 页面以 YAML frontmatter + Markdown 正文格式存储，例如：
+
+```markdown
+---
+title: results table
+type: entity
+tags:
+  - database
+  - structured
+sources:
+  - db/data.db
+confidence: EXTRACTED
+---
+
+## Schema
+| Column | Type | Notes |
+|--------|------|-------|
+| resultId | INTEGER | Primary key |
+| raceId | INTEGER | FK -> races.raceId |
+| points | REAL | Points scored |
+
+## Sample Values
+position: 1, 2, 3, DNF
+```
+
+**WikiIngestor 的两阶段知识提取（ingest.py）**：
+
+```python
+def ingest_task(self, task, run_result=None):
+    knowledge = self._extract_knowledge(task, run_result)  # 阶段1: 提取
+    # 阶段2: 写入 wiki 页面
+    source_page = self._create_source_page(knowledge)
+    for entity in knowledge.data_sources:
+        # 每个数据表创建一个 entity 页面（upsert：已存在则合并）
+        self.engine.upsert_page(entity_page)
+    self.engine.rebuild_index()  # 重建全局索引
+```
+
+每次 `ingest_task` 会对 context/ 目录下的所有数据源调用 LLM 生成摘要，实测单任务耗时约 30-90 秒（取决于数据文件数量），导致 2 小时 / 60 任务的 A-Board 严重超时。
 
 **在公开测试集上得分最高的原因**：
 - Wiki 描述为 Agent 提供了丰富的语义上下文
