@@ -88,12 +88,12 @@ graph LR
 
 | 版本 | 分支 | 公开测试集得分 (本地) | A-Board 得分 | 核心技术 | 提交状态 |
 |:---|:---|:---|:---|:---|:---|
-| **v3** | `v3` | 53.50% (S: 56.91%) | **0.5114** ⭐ | **Schema KG + PageIndex** (含 Answer 拦截校验) | ✅ 已提交，最优 |
-| **v1** | `main` | 72.38% | **0.3298** | **官方 Starter Kit 微调** (无高级 Schema 导航) | ✅ 已提交 |
-| **v6** | `v5` | 64.00% | **0.3184** | **Schema KG + PageIndex + Prompt 优化** | ✅ 已提交 |
-| **v4** | `v4` | — | **0.2982** | **v3 去掉分级策略** (全量注入 Schema KG + PageIndex) | ✅ 已提交 |
-| **v5** | `LLMWIKI` | 59.50% (S: 64.67%) | **0.1658** | **LLM Wiki 预处理模式** (Andrej Karpathy 思想) | ✅ 已提交 |
-| exp/* | 实验分支 | 较低 | — | 向量检索 (PageRAG) / 图检索 (GraphRAG) | ❌ 未提交 |
+| **v3** | `v3` | 53.50% (S: 56.91%) | **0.5114** ⭐ | **Schema KG + PageIndex** (含 Answer 拦截校验) | 已提交，最优 |
+| **v1** | `main` | 72.38% | **0.3298** | **官方 Starter Kit 微调** (无高级 Schema 导航) | 已提交 |
+| **v6** | `v5` | 64.00% | **0.3184** | **Schema KG + PageIndex + Prompt 优化** | 已提交 |
+| **v4** | `v4` | — | **0.2982** | **v3 去掉分级策略** (全量注入 Schema KG + PageIndex) | 已提交 |
+| **v5** | `LLMWIKI` | 59.50% (S: 64.67%) | **0.1658** | **LLM Wiki 预处理模式** (Andrej Karpathy 思想) | 已提交 |
+| exp/* | 实验分支 | 较低 | — | 向量检索 (PageRAG) / 图检索 (GraphRAG) | 未提交 |
 
 ### 3.2 关键发现
 
@@ -665,7 +665,7 @@ def ingest_task(self, task, run_result=None):
 为满足导师汇报的严谨学术要求，我们对三个核心版本的失分/运行故障任务进行了全量单步排查。以下是每个版本的详细失败案例诊断（点击下方卡片可展开查看完整明细）：
 
 <details class="premium-details">
-    <summary class="premium-summary">📂 点击展开/收起：v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 24 个)</summary>
+    <summary class="premium-summary">点击展开/收起：v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 24 个)</summary>
     <div class="details-content">
         <h4 id="failed-tasks-v3">v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 25 个)</h4>
 <table class="failed-tasks-table">
@@ -913,7 +913,7 @@ def ingest_task(self, task, run_result=None):
 </details>
 
 <details class="premium-details">
-    <summary class="premium-summary">📂 点击展开/收起：v5 (Wiki Baseline) 失败与不完美任务明细 (共 21 个)</summary>
+    <summary class="premium-summary">点击展开/收起：v5 (Wiki Baseline) 失败与不完美任务明细 (共 21 个)</summary>
     <div class="details-content">
         <h4 id="failed-tasks-v5">v5 (Wiki Baseline) 失败与不完美任务明细 (共 21 个)</h4>
 <table class="failed-tasks-table">
@@ -1125,7 +1125,7 @@ def ingest_task(self, task, run_result=None):
 </details>
 
 <details class="premium-details">
-    <summary class="premium-summary">📂 点击展开/收起：v6 (v5 分支 / 64.00% 统一架构) 失败与不完美任务明细 (共 18 个)</summary>
+    <summary class="premium-summary">点击展开/收起：v6 (v5 分支 / 64.00% 统一架构) 失败与不完美任务明细 (共 18 个)</summary>
     <div class="details-content">
         <h4 id="failed-tasks-v6">v6 (v5分支 / 64.00% 统一架构) 失败与不完美任务明细 (共 18 个)</h4>
 <table class="failed-tasks-table">
@@ -1363,7 +1363,7 @@ def ingest_task(self, task, run_result=None):
 
 ## 五、关键教训与反思
 
-### 5.1 ✅ 成功经验
+### 5.1 成功经验
 
 1. **"信息前置"优于"按需检索"**
    - Schema KG 在推理前一次性提供数据全貌，比让 Agent 自行探索高效得多
@@ -1380,7 +1380,7 @@ def ingest_task(self, task, run_result=None):
    - 移除 `sentence-transformers` 后，镜像从 ~3GB 降至 ~260MB
    - 构建时间从 20 分钟降至 1 分钟
 
-### 5.2 ❌ 失败教训
+### 5.2 失败教训
 
 1. **不要过度依赖公开测试集**
    - 公开集与隐藏集的分布差异极大，v6 的"公开最高、A-Board 最低"是惨痛教训
@@ -1394,7 +1394,7 @@ def ingest_task(self, task, run_result=None):
 4. **向量检索在结构化数据场景效果有限**
    - 本赛题以 CSV/DB 为主，Embedding 检索的优势场景（大规模非结构化文档）出现频率低
 
-### 5.3 🔮 如果重来会怎么做
+### 5.3 展望与改进方向
 
 1. **更早放弃向量检索方向**，集中精力优化 Schema KG 和工具链
 2. **在 A-Board 上多次验证同一版本**，评估得分方差
@@ -1419,12 +1419,12 @@ def ingest_task(self, task, run_result=None):
 
 | 检查项 | 状态 |
 |:---|:---|
-| 镜像 ID 一致性 | ✅ SHA256 完全相同 |
-| 容器正常启动 | ✅ exit code = 0 |
-| 单任务测试（task_25） | ✅ 1/1 succeeded |
-| 输出格式 | ✅ `/output/task_25/prediction.csv` 标准 CSV |
-| 日志写入 | ✅ `/logs/runtime.log` 正常 |
-| 文件大小 | ✅ 267.51 MB < 10 GB |
+| 镜像 ID 一致性 | SHA256 完全相同 (通过) |
+| 容器正常启动 | exit code = 0 (通过) |
+| 单任务测试（task_25） | 1/1 succeeded (通过) |
+| 输出格式 | `/output/task_25/prediction.csv` 标准 CSV (通过) |
+| 日志写入 | `/logs/runtime.log` 正常 (通过) |
+| 文件大小 | 267.51 MB < 10 GB (通过) |
 
 ### 6.3 提交信息
 
