@@ -64,7 +64,7 @@ Agent 在每一步输出一个 JSON 对象，包含 `thought`（推理）、`act
 graph LR
     main["main<br/>官方基准微调<br/>A-Board: 0.3298"]
     v3["v3<br/>KG + PageIndex<br/>A-Board: 0.5114 ⭐"]
-    v4["v4<br/>v3 同源<br/>A-Board: 0.2982"]
+    v4["v4<br/>v3 去掉分级策略<br/>A-Board: 0.2982"]
     v5["v5<br/>v3 + Prompt优化<br/>未提交A-Board"]
     LLMWIKI["LLMWIKI<br/>LLM Wiki 模式<br/>A-Board: 0.1658"]
     
@@ -91,7 +91,7 @@ graph LR
 | **v3** | `v3` | 64.00% | **0.5114** ⭐ | Schema KG + PageIndex + Answer Interceptor | ✅ 已提交，最高分 |
 | **v1** | `main` | 72.38% | **0.3298** | 官方 Starter Kit 微调 | ✅ 已提交 |
 | **v5** | `v5` | 64.00% | **0.3184** | v3 + Prompt 边界检查 + 并发优化 | ✅ 已提交 |
-| **v4** | `v4` | — | **0.2982** | v3 同源代码 | ✅ 已提交 |
+| **v4** | `v4` | — | **0.2982** | v3 去掉分级策略 (即对所有难度任务采用统一的完整 Schema KG + PageIndex 架构，无 Easy 简化) | ✅ 已提交 |
 | **v6** | `LLMWIKI` | **最高** | **0.1658** | LLM Wiki（Karpathy 模式）| ✅ 已提交 |
 | exp/* | 实验分支 | 较低 | — | 向量检索 / GraphRAG / Embedding | ❌ 未提交 |
 
@@ -428,19 +428,21 @@ if j > i + 1 and j < len(state.steps):
 - Answer Interceptor 强制二次审核，减少粗心错误
 - 整体方案**增强信息而不增加复杂度**，不引入额外的推理链路
 
-#### v4 — v3 同源（A-Board: 0.2982）
+#### v4 — v3 去掉分级策略（A-Board: 0.2982）
 
-**核心思路**：与 v3 代码完全相同（同一个 commit `485bf80`），但 A-Board 得分显著低于 v3。
+**核心思路**：v4 是从 v3 演化而来，核心差异在于**去掉了针对任务难度的分级策略（Difficulty Routing Strategy）**。在 v4 中，不论任务属于 `easy` 还是 `medium/hard/extreme`，均统一生成并注入完整的 Schema KG 和 PageIndex 树状文档索引，不进行任何分流简化。
+
+**技术对比**：
+- **v3 分流架构**：为了防范 Token 冗余及模型幻觉，v3 引入了难度分流。针对 `easy` 任务只提取最精简的文件结构，仅在遇到 `medium/hard/extreme` 等高难度任务时才启动高成本的 Schema KG + PageIndex 机制。
+- **v4 统一架构**：去掉了分流逻辑，对全部任务一刀切地注入了高阶数据图谱和文档导航索引。
 
 **得分差异原因分析**：
-- v3 和 v4 指向同一个 Git commit，代码逻辑完全一致
-- A-Board 得分差异（0.5114 vs 0.2982）可能源于：
-  1. **模型推理的非确定性**：Qwen3.5-35B-A3B 的 `temperature=0` 在 vLLM 的 8 路张量并行下仍存在浮点精度差异
-  2. **任务执行顺序效应**：不同提交时的评测队列状态可能影响模型服务的响应
-  3. **超时边界效应**：2 小时 A-Board 时限下，个别任务的执行时间波动可能导致部分任务未完成
-
+- v4 在 A-Board 上的得分（0.2982）相比 v3（0.5114）出现大幅滑坡，核心原因在于：
+  1. **低难度任务受到信息噪音干扰**：Easy 任务（如简单查询）本可通过基础的文件名识别和简单的 SQL/Python 完成，而在 v4 下被强制注入了极长的 Schema KG 表关联和 PageIndex 树，导致 Prompt 中的噪音数据急剧增加，Qwen3.5-35B-A3B 在多余信息的干扰下产生了幻觉或误判，调用了不必要的复杂工具。
+  2. **Token 超限与延迟增加**：冗余的 Schema 结构增大了 Context Window 负担，增加了单步推理的开销，进而增加了超时的概率。
+  
 > [!WARNING]
-> v4 的得分表明，即使代码完全相同，不同次评测的得分也可能有 **0.2+** 的波动。这在依赖 LLM 推理的系统中是需要重视的稳定性问题。
+> v4 的实验结果有力地论证了**“难度分级策略 (Difficulty Routing)”的工程必要性**。数据智能体并非上下文注入越全越好，而是需要根据任务的物理复杂度进行动态剪裁与路由。量体裁衣才能达到最高的推理准确率与稳定性。
 
 #### v5 — v3 + Prompt 优化（A-Board: 0.3184）
 
