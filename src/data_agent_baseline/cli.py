@@ -153,7 +153,7 @@ def run_task_command(
         _, run_output_dir = create_run_output_dir(app_config.run.output_dir, run_id=app_config.run.run_id)
     except (ValueError, FileExistsError) as exc:
         raise typer.BadParameter(str(exc), param_hint="run.run_id") from exc
-    artifacts = run_single_task(task_id=task_id, config=app_config, run_output_dir=run_output_dir)
+    artifacts = run_single_task(task_id=task_id, config=app_config, prediction_root_dir=run_output_dir)
 
     console.print(f"Run output: {run_output_dir}")
     console.print(f"Task output: {artifacts.task_output_dir}")

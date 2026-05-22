@@ -75,6 +75,8 @@ def main():
             run=run_config
         )
         use_flat_output = True
+        artifact_output_dir = EVAL_LOGS / "artifacts" / "evaluation"
+        write_summary = False
     else:
         print("=== Running in Local / Private Server Environment ===")
         # In local environment, use paths from yaml or relative paths
@@ -88,12 +90,16 @@ def main():
         print(f"Input path: {app_config.dataset.root_path}")
         print(f"Output path: {app_config.run.output_dir}")
         use_flat_output = False # Local runs usually prefer timestamped folders
+        artifact_output_dir = None
+        write_summary = True
 
     # Run the benchmark
     print("Starting benchmark evaluation loop...")
     run_output_dir, artifacts = run_benchmark(
         config=app_config, 
-        use_flat_output=use_flat_output
+        use_flat_output=use_flat_output,
+        artifact_output_dir=artifact_output_dir,
+        write_summary=write_summary,
     )
     
     print(f"Benchmark finished. Run output: {run_output_dir}")

@@ -28,7 +28,7 @@ class TaskRunArtifacts:
     task_id: str
     task_output_dir: Path
     prediction_csv_path: Path | None
-    trace_path: Path
+    trace_path: Path | None
     succeeded: bool
     failure_reason: str | None
 
@@ -37,7 +37,7 @@ class TaskRunArtifacts:
             "task_id": self.task_id,
             "task_output_dir": str(self.task_output_dir),
             "prediction_csv_path": str(self.prediction_csv_path) if self.prediction_csv_path else None,
-            "trace_path": str(self.trace_path),
+            "trace_path": str(self.trace_path) if self.trace_path else None,
             "succeeded": self.succeeded,
             "failure_reason": self.failure_reason,
         }
@@ -195,11 +195,21 @@ def _run_single_task_with_timeout(*, task_id: str, config: AppConfig, task_outpu
 
 
 # 将任务的运行轨迹 (trace) 和预测结果 (prediction) 写入磁盘
-def _write_task_outputs(task_id: str, run_output_dir: Path, run_result: dict[str, Any]) -> TaskRunArtifacts:
-    task_output_dir = run_output_dir / task_id
+def _write_task_outputs(
+    task_id: str,
+    prediction_root_dir: Path,
+    run_result: dict[str, Any],
+    artifact_root_dir: Path | None = None,
+) -> TaskRunArtifacts:
+    task_output_dir = prediction_root_dir / task_id
     task_output_dir.mkdir(parents=True, exist_ok=True)
-    trace_path = task_output_dir / "trace.json"
-    _write_json(trace_path, run_result)
+
+    trace_path: Path | None = None
+    if artifact_root_dir is not None:
+        artifact_task_dir = artifact_root_dir / task_id
+        artifact_task_dir.mkdir(parents=True, exist_ok=True)
+        trace_path = artifact_task_dir / "trace.json"
+        _write_json(trace_path, run_result)
 
     prediction_csv_path: Path | None = None
     answer = run_result.get("answer")
@@ -226,20 +236,28 @@ def run_single_task(
     *,
     task_id: str,
     config: AppConfig,
-    run_output_dir: Path,
+    prediction_root_dir: Path,
+    artifact_root_dir: Path | None = None,
     model=None,
     tools: ToolRegistry | None = None,
 ) -> TaskRunArtifacts:
     started_at = perf_counter()
-    task_output_dir = run_output_dir / task_id
-    task_output_dir.mkdir(parents=True, exist_ok=True)
+    task_output_dir = None
+    if artifact_root_dir is not None:
+        task_output_dir = artifact_root_dir / task_id
+        task_output_dir.mkdir(parents=True, exist_ok=True)
     
     if model is None and tools is None:
         run_result = _run_single_task_with_timeout(task_id=task_id, config=config, task_output_dir=task_output_dir)
     else:
         run_result = _run_single_task_core(task_id=task_id, config=config, model=model, tools=tools, task_output_dir=task_output_dir)
     run_result["e2e_elapsed_seconds"] = round(perf_counter() - started_at, 3)
-    return _write_task_outputs(task_id, run_output_dir, run_result)
+    return _write_task_outputs(
+        task_id,
+        prediction_root_dir,
+        run_result,
+        artifact_root_dir=artifact_root_dir,
+    )
 
 
 # 批量运行多个任务（Benchmark），支持并行处理
@@ -251,13 +269,21 @@ def run_benchmark(
     limit: int | None = None,
     progress_callback: Callable[[TaskRunArtifacts], None] | None = None,
     use_flat_output: bool = False,
+    artifact_output_dir: Path | None = None,
+    write_summary: bool = True,
 ) -> tuple[Path, list[TaskRunArtifacts]]:
     if use_flat_output:
         effective_run_id = resolve_run_id(config.run.run_id) if config.run.run_id else "evaluation"
-        run_output_dir = config.run.output_dir
-        run_output_dir.mkdir(parents=True, exist_ok=True)
+        prediction_root_dir = config.run.output_dir
+        prediction_root_dir.mkdir(parents=True, exist_ok=True)
     else:
-        effective_run_id, run_output_dir = create_run_output_dir(config.run.output_dir, run_id=config.run.run_id)
+        effective_run_id, prediction_root_dir = create_run_output_dir(config.run.output_dir, run_id=config.run.run_id)
+
+    if artifact_output_dir is None:
+        artifact_root_dir = prediction_root_dir
+    else:
+        artifact_root_dir = artifact_output_dir
+        artifact_root_dir.mkdir(parents=True, exist_ok=True)
 
     dataset = DABenchPublicDataset(config.dataset.root_path)
     tasks = dataset.iter_tasks()
@@ -279,7 +305,8 @@ def run_benchmark(
             artifact = run_single_task(
                 task_id=task_id,
                 config=config,
-                run_output_dir=run_output_dir,
+                prediction_root_dir=prediction_root_dir,
+                artifact_root_dir=artifact_root_dir,
                 model=model,
                 tools=tools,
             )
@@ -293,7 +320,8 @@ def run_benchmark(
                     run_single_task,
                     task_id=task_id,
                     config=config,
-                    run_output_dir=run_output_dir,
+                    prediction_root_dir=prediction_root_dir,
+                    artifact_root_dir=artifact_root_dir,
                 ): index
                 for index, task_id in enumerate(task_ids)
             }
@@ -305,24 +333,25 @@ def run_benchmark(
                     progress_callback(artifact)
             task_artifacts = [artifact for artifact in indexed_artifacts if artifact is not None]
 
-    summary_path = run_output_dir / "summary.json"
-    _write_json(
-        summary_path,
-        {
-            "run_id": effective_run_id,
-            "task_count": len(task_artifacts),
-            "succeeded_task_count": sum(1 for artifact in task_artifacts if artifact.succeeded),
-            "max_workers": effective_workers,
-            "config": {
-                "agent": {
-                    "model": config.agent.model,
-                    "embedding_model": config.agent.embedding_model,
-                    "max_steps": config.agent.max_steps,
-                    "temperature": config.agent.temperature,
-                    "max_tokens": config.agent.max_tokens,
-                }
+    if write_summary and artifact_root_dir is not None:
+        summary_path = artifact_root_dir / "summary.json"
+        _write_json(
+            summary_path,
+            {
+                "run_id": effective_run_id,
+                "task_count": len(task_artifacts),
+                "succeeded_task_count": sum(1 for artifact in task_artifacts if artifact.succeeded),
+                "max_workers": effective_workers,
+                "config": {
+                    "agent": {
+                        "model": config.agent.model,
+                        "embedding_model": config.agent.embedding_model,
+                        "max_steps": config.agent.max_steps,
+                        "temperature": config.agent.temperature,
+                        "max_tokens": config.agent.max_tokens,
+                    }
+                },
+                "tasks": [artifact.to_dict() for artifact in task_artifacts],
             },
-            "tasks": [artifact.to_dict() for artifact in task_artifacts],
-        },
-    )
-    return run_output_dir, task_artifacts
+        )
+    return prediction_root_dir, task_artifacts

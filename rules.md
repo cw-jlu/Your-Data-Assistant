@@ -508,3 +508,71 @@ Not fixed. Different tasks may contain different combinations of data sources (`
 4. Confirm Google Drive file sharing permissions are enabled to ensure organizers can download.
 5. Confirm output format matches Demo data, avoid nesting extra directories other than `task_<id>` inside `output` folder.
 6. Check if generated `prediction.csv` parses normally, ensuring organizers can read it properly.
+Phase-1 B-board Evaluation Instructions
+Dear Participants,
+
+We would like to clarify the timeline for the Phase-1 A-board deadline, final B-board submission, and the subsequent internal evaluation period.
+
+1. Overall Timeline
+1) A-board Submission Deadline / B-board Submission Opens
+
+Beijing Time (UTC+8): May 21, 2026, 19:59
+AoE: May 20, 2026, 23:59 (same instant)
+From this time onward, no further Phase-1 A-board submissions will be accepted. The final B-board submission window will open at the same time.
+
+2) A-board Evaluation Results Returned
+
+Beijing Time (UTC+8): May 22, 2026, 19:59
+AoE: May 21, 2026, 23:59 (same instant)
+The organizing committee will ensure that all Phase-1 A-board submissions have been evaluated and that result emails have been returned to all participating teams.
+
+3) B-board Submission Deadline
+
+Beijing Time (UTC+8): May 23, 2026, 19:59
+AoE: May 22, 2026, 23:59 (same instant)
+No final B-board submissions will be accepted after this deadline.
+
+4) Internal Evaluation Period
+
+Beijing Time (UTC+8): May 23, 2026, 19:59 to May 26, 2026, 19:59
+AoE: May 22, 2026, 23:59 to May 25, 2026, 23:59 (same instants as Beijing times above)
+This period is reserved for internal evaluation by the organizing committee. During this period, no submissions, version replacements, file modifications, or other change requests will be accepted.
+
+2. Final B-board Submission Guidence
+During the B-board submission window, please submit your final solution using the following format. See also Competition Rules §3.
+
+2.1 Image Naming Convention
+Item	Format & Description
+Image Name	<team_id>:final
+Archive Filename	<team_id>_final.tar.gz
+<team_id>	Unique team identifier assigned by the system after registration (e.g., team0000)
+Example (Team ID is team0000):
+
+Image name: team0000:final
+Archive filename: team0000_final.tar.gz
+2.2 Email submission
+Email Subject
+
+[KDDCup2026 Data Agents] B-board Final Submission - team0000
+Email Body
+
+Team ID: team0000
+Sharing link: https://drive.google.com/file/d/.../view?usp=share_link
+3. Important Submission Rules
+Each team is allowed to submit its final B-board solution only once.
+
+Repeated B-board submissions via multiple emails are not allowed;
+Version replacement or sharing-link modification after submission is not allowed;
+The organizing committee will only fetch the solution from the first valid B-board submission email;
+Before sending the email, teams must carefully check Team ID, Sharing link, image file, archive naming, sharing permissions, and all other relevant information.
+If a team does not submit a final B-board solution during the submission window, the organizing committee will automatically use the version with the team's highest A-board score for B-board evaluation. Participants must ensure that Sharing Links of previously submitted versions remain valid, accessible, and downloadable.
+
+4. B-board Evaluation Rules
+The B-board evaluation rules are exactly the same as those of the A-board, including but not limited to:
+
+No Internet access;
+Unified models and evaluation environment;
+Same evaluation logic.
+The only difference is that the runtime limit for B-board evaluation is extended to 12 hours.
+
+KDD Cup 2026 Data Agents Challenge Organizing Committee
