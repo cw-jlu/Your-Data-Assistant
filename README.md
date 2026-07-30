@@ -1,118 +1,227 @@
-# Data Agent Unified Client
+# Data Agent Desktop
 
-## Windows 桌面版
+一个面向本地文件分析的 Windows 桌面客户端，把四套 KDD Cup 2026
+DataAgent-Bench 方案统一到同一套交互流程中：
 
-构建便携版客户端：
+1. 选择一个或多个 Agent；
+2. 点击上传按钮并选择本地文件；
+3. 输入自然语言 Query；
+4. 查看结果和完整运行 Trace。
 
-```powershell
-.\build-windows.ps1
-```
+客户端使用 Windows WebView2 显示桌面窗口，不会打开外部浏览器。任务记录、
+日志和上传元数据通过 SQLite 持久化，应用重启后仍可查看。
 
-产物位于：
+## 下载与运行
 
-- `dist/DataAgent/DataAgent.exe`：直接运行的 Windows 桌面客户端；
-- `dist/DataAgent-Windows-x64.zip`：包含 EXE、四套引擎源码和 `uv.exe` 的完整分发包。
-
-客户端使用系统 WebView2 渲染原生窗口，不会打开外部浏览器。本地 HTTP 服务仅绑定随机
-loopback 端口，并随窗口关闭。应用数据库会在首次启动时自动创建：
+推荐从 GitHub Releases 下载：
 
 ```text
-%LOCALAPPDATA%\DataAgent\data-agent.db
+DataAgent-Windows-x64.zip
 ```
 
-SQLite 保存任务状态、用户可见 Trace 日志、工作区和上传文件元数据。上传原文件及运行输出
-保存在同目录下的文件夹中，不作为 BLOB 写进数据库，以保持数据库轻量。首次执行某个引擎时，
-内置的 `uv.exe` 会根据该引擎的锁文件安装运行依赖。
+解压后双击：
 
-这是四套 KDD Cup 2026 DataAgent-Bench 方案的本地统一客户端。它不会把上游仓库直接揉成一个难以升级的包，而是先建立稳定的任务、运行和结果协议：
-
-- 同一个页面选择 LangGraph、Kobushi、Memory ReAct、Mamba Agent；
-- 点击上传按钮查看支持格式并上传本地资料；
-- 输入自然语言 Query，客户端自动生成内部标准任务；
-- 统一注入 OpenAI-compatible 模型参数；
-- 单次 Query 可交给一个或多个引擎；
-- 查看输出、停止任务，并展开完整进程与 artifact Trace；
-- 每套引擎仍在自己的源码目录和依赖环境中运行。
-
-## 启动
-
-在 PowerShell 中运行：
-
-```powershell
-cd D:\code\python\kdd\unified-client
-.\start.ps1
+```text
+DataAgent.exe
 ```
 
-或：
+> 不要只复制 `DataAgent.exe`。当前版本采用便携目录结构，EXE 还需要同目录中的
+> `_internal/`、`engines/` 和 `uv.exe`。请完整解压 ZIP 后运行。
+
+系统要求：
+
+- Windows 10 或 Windows 11，64 位；
+- Microsoft Edge WebView2 Runtime；
+- 首次运行某个 Agent 时需要联网安装其 Python 依赖；
+- 一个 OpenAI-compatible 模型服务及 API Key。
+
+## 功能
+
+- Codex 风格的单窗口任务界面；
+- 上传按钮动态显示当前所选 Agent 真正支持的文件类型；
+- 同一个 Query 可提交给一个或多个 Agent；
+- Kobushi 可直接处理客户端生成的单任务工作区；
+- 实时展示运行状态和进程日志；
+- 结果、标准输出、JSON artifact 与 SQLite Trace 对用户可见；
+- 可停止正在运行的任务；
+- SQLite 持久化任务历史、Trace 日志和工作区元数据；
+- 应用异常退出后，未完成任务会恢复为“已中断”状态；
+- 本地服务只监听随机的 `127.0.0.1` 回环端口，并随窗口关闭。
+
+## 内置 Agent
+
+| Agent | 主要能力 | 客户端入口 |
+| --- | --- | --- |
+| LangGraph | 状态图编排、多模态预处理、多级验证 | `uv run dabench` |
+| Kobushi | 分阶段 ReAct、实验配置、视频 ASR | `uv run python submission/main.py` |
+| Memory ReAct | Self-consistency、跨运行投票、任务记忆 | `uv run dabench` |
+| Mamba Agent | ETL 路由、原生工具调用、SQLite tracing | `uv run dabench` |
+
+每套 Agent 仍在自己的源码目录和依赖环境中运行。桌面客户端只负责统一任务协议、
+上传、调度、结果展示和 Trace 聚合，不会强行合并四套上游实现。
+
+## 文件支持
+
+上传窗口会根据当前所选 Agent 计算扩展名交集，避免出现“客户端允许上传，但某个
+Agent 实际无法处理”的情况。
+
+| Agent | 主要支持格式 |
+| --- | --- |
+| LangGraph | CSV、JSON、SQLite、Markdown、TXT、PDF、JPG/PNG/WebP、常见视频 |
+| Kobushi | CSV/TSV、JSON/JSONL、SQLite、Markdown、TXT、PDF、HTML/XML、常见视频 |
+| Memory ReAct | CSV/TSV、JSON、SQLite、Markdown、TXT、PDF、XLSX/XLSM、Parquet |
+| Mamba Agent | CSV、JSON、SQLite、Markdown、TXT、PDF、常见视频 |
+
+独立 MP3/WAV、DOCX 和旧式 XLS 没有被四套工具链共同可靠支持，因此未作为通用
+上传格式开放。Mamba 的视频工具还存在单文件 100 MB 的上游限制。
+
+## 使用方法
+
+1. 打开 `DataAgent.exe`。
+2. 在左侧选择一个或多个 Agent；Mamba 默认选中。
+3. 点击 Query 输入区旁的上传按钮。
+4. 查看支持格式，选择一个或多个本地文件。
+5. 打开设置，填写 API 地址、模型名称和 API Key。
+6. 输入针对这些文件的问题并提交。
+7. 在对话区域查看输出，点击“完整 Trace”查看全部过程记录。
+
+客户端会把一次上传自动转换成标准 DABench 任务：
+
+```text
+workspaces/<workspace-id>/input/task_1/
+├── task.json       # 自然语言 Query
+└── context/        # 上传的原文件
+```
+
+因此四套 Agent 接收到的仍然是统一的标准任务目录。
+
+## 数据与 SQLite
+
+桌面版的用户数据默认位于：
+
+```text
+%LOCALAPPDATA%\DataAgent\
+├── data-agent.db
+├── outputs/
+├── logs/
+├── traces/
+├── workspaces/
+└── webview/
+```
+
+`data-agent.db` 使用 SQLite WAL 模式，保存：
+
+- 任务及其开始、结束、退出状态；
+- 用户可见的逐行 Trace 日志；
+- 工作区和上传文件元数据；
+- 数据库 Schema 版本；
+- 后续可迁移的应用设置。
+
+上传原文件和运行输出不会作为 BLOB 写入数据库，而是保存在对应目录中。这样可以
+让 SQLite 保持轻量，也更方便直接检查和备份文件。
+
+API Key 当前不会持久化到 SQLite。Mamba 的上游配置加载器无法通过环境变量覆盖
+Key，因此客户端只会生成运行期临时配置，并在子进程结束后删除。
+
+## 从源码运行
+
+要求：
+
+- Python 3.11 或更高版本；
+- `uv`；
+- 四套 Agent 源码位于 `engines/`。
+
+启动浏览器开发模式：
 
 ```powershell
 python -m app.server --open
 ```
 
-默认地址是 [http://127.0.0.1:8765](http://127.0.0.1:8765)。客户端自身只使用 Python 标准库；首次启动某个引擎时，`uv` 会按该引擎自己的 `pyproject.toml` 同步依赖。
-
-## 使用方式
-
-1. 在首页选择一个或多个引擎，Mamba 默认选中。
-2. 点击 Query 输入框下方的 `＋`，先查看可用格式，再选择文件。
-3. 输入针对这些资料的问题。
-4. 如有需要，点击 `⌁` 设置 API 地址、模型、Key、并发和超时。
-5. 点击 `↑` 提交。
-6. 答案会直接出现在对话中；点击“完整 Trace”查看运行日志、`trace.json`、`summary.json` 和 Mamba `tracing.db`。
-
-客户端在内部自动生成：
+默认地址：
 
 ```text
-.runtime/workspaces/<workspace-id>/input/task_1/
-├── task.json       # Query
-└── context/        # 上传文件
+http://127.0.0.1:8765
 ```
 
-因此所有上游引擎仍然接收标准 DABench 任务，Kobushi 也可以直接用于单次上传式 Query。
+启动桌面开发模式：
 
-## 文件兼容性
+```powershell
+python desktop.py
+```
 
-上传弹窗按当前所选引擎取扩展名交集，不再把“客户端允许上传”当成“所有 Agent 都能处理”。
+## 构建 Windows 客户端
 
-| 引擎 | 主要原生支持 |
-| --- | --- |
-| LangGraph | CSV、JSON、SQLite、MD/TXT/PDF、JPG/PNG/WebP、常见视频 |
-| Kobushi | CSV/TSV、JSON/JSONL、SQLite、MD/TXT/PDF/HTML/XML、常见视频 |
-| Memory ReAct | CSV/TSV、JSON、SQLite、MD/TXT/PDF、XLSX/XLSM、Parquet |
-| Mamba Agent | CSV、JSON、SQLite、MD/TXT/PDF、常见视频 |
+安装 PyInstaller 和 pywebview 后执行：
 
-独立 MP3/WAV、DOCX、旧式 XLS 等格式没有被这些 Agent 的实际工具链共同支持，因此已从上传列表移除。Mamba 视频单文件还有 100 MB 的上游硬限制。弹窗可以展开查看每个引擎的完整扩展名与限制说明。
+```powershell
+.\build-windows.ps1
+```
 
-## 四个适配器
+构建脚本会：
 
-| 客户端名称 | 上游入口 | 主要能力 | 模式 |
-| --- | --- | --- | --- |
-| LangGraph | `uv run dabench ...` | 图工作流、多模态预处理、多级验证 |
-| Kobushi | `uv run python submission/main.py` | 分阶段 ReAct、实验包切换、ASR |
-| Memory ReAct | `uv run dabench ...` | 自一致性、多轮投票、跨任务记忆 |
-| Mamba Agent | `uv run dabench ...` | ETL 路由、原生工具、SQLite tracing |
+1. 用 PyInstaller 生成轻量 `onedir` 桌面程序；
+2. 只保留 Windows Edge WebView2 后端；
+3. 复制四套 Agent 源码；
+4. 将当前 `uv.exe` 放入便携目录；
+5. 生成可作为 GitHub Release 附件的 ZIP。
 
-Kobushi 的官方 submission 入口会扫描输入目录；客户端为每次 Query 创建只含 `task_1` 的独立目录，因此它现在和其他引擎一样可直接选择。
-
-## 运行产物
-
-所有客户端运行产物位于：
+构建产物：
 
 ```text
-.runtime/
-├── outputs/<run-id>/
-├── logs/<run-id>/
-├── traces/<run-id>.db
-└── workspaces/<workspace-id>/
+dist/
+├── DataAgent/
+│   ├── DataAgent.exe
+│   ├── _internal/
+│   ├── engines/
+│   └── uv.exe
+└── DataAgent-Windows-x64.zip
 ```
 
-运行期 YAML 配置位于 `.runtime/configs/`，进程结束后会立即删除。前三个适配器尽量通过环境变量注入 API Key；Mamba 上游配置加载器不支持 Key 的环境变量覆盖，所以客户端会短暂写入运行期配置，并在退出后清理。`.runtime/` 已加入 `.gitignore`。
+当前验证构建约为：
+
+- EXE：5.9 MB；
+- 完整便携目录：166 MB；
+- ZIP：65.6 MB。
+
+## 测试
+
+运行单元测试：
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+测试覆盖：
+
+- 四个 Agent 注册和 Kobushi 模式；
+- 标准任务目录识别；
+- 文件类型能力和上传；
+- JSON、SQLite 与进程日志 Trace 聚合；
+- SQLite Schema、任务日志持久化和中断恢复。
+
+## 项目结构
+
+```text
+app/
+├── database.py     # SQLite 数据层
+├── desktop.py      # WebView2 桌面窗口与服务生命周期
+├── engines.py      # 四套 Agent 适配器
+├── manager.py      # 任务调度、日志、结果和 Trace
+├── paths.py        # 开发/打包环境路径解析
+├── server.py       # 本地 HTTP API 与静态资源服务
+└── workspaces.py   # 上传能力与标准任务工作区
+
+static/             # 桌面界面
+engines/            # 四套上游 Agent
+tests/              # 客户端测试
+build-windows.ps1   # Windows 打包脚本
+desktop.py          # 桌面版入口
+```
 
 ## 当前边界
 
-- 客户端已完成“适配器级整合”：统一上传、Query、调度、输出与 Trace。
-- 不同引擎的答案目前并列展示，尚未自动判定哪一份更优。
-- 进程内存状态会在客户端服务重启后清空，但磁盘输出仍保留。
-- 首次 `uv run` 可能下载大量依赖；ASR 引擎还可能需要模型权重。
-
-进一步的能力级融合方案见 [docs/融合架构.md](docs/融合架构.md)。
+- 多个 Agent 的结果目前并列展示，不自动判断哪一个更好；
+- 首次执行 Agent 时，`uv` 可能需要下载较多依赖；
+- 视频 ASR 可能需要额外模型权重；
+- 便携包尚未进行 Windows 代码签名，首次运行可能触发 SmartScreen 提示；
+- GitHub 仓库中的各上游 Agent 保留其各自许可证和说明。
