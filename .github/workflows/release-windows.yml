@@ -1,0 +1,110 @@
+name: Release Windows Desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build and release Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Install desktop build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller==6.21.0 pywebview==6.2.1
+
+      - name: Run desktop client tests
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p "test_database.py" -v
+          python -m unittest discover -s tests -p "test_engines.py" -v
+          python -m unittest discover -s tests -p "test_trace.py" -v
+          python -m unittest discover -s tests -p "test_workspaces.py" -v
+
+      - name: Build portable Windows package
+        shell: pwsh
+        run: .\build-windows.ps1
+
+      - name: Verify package and create checksum
+        shell: pwsh
+        run: |
+          @'
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          archive_path = Path("dist/DataAgent-Windows-x64.zip")
+          with zipfile.ZipFile(archive_path) as archive:
+              names = set(archive.namelist())
+              required = {
+                  "DataAgent.exe",
+                  "uv.exe",
+                  "_internal/static/index.html",
+              }
+              missing = sorted(required - names)
+              engine_roots = {
+                  name.split("/")[1]
+                  for name in names
+                  if name.startswith("engines/") and len(name.split("/")) > 1
+              }
+              bad_entry = archive.testzip()
+
+          if missing:
+              raise SystemExit(f"Missing package entries: {missing}")
+          if len(engine_roots) != 4:
+              raise SystemExit(f"Expected four engines, found: {sorted(engine_roots)}")
+          if bad_entry:
+              raise SystemExit(f"Corrupt ZIP entry: {bad_entry}")
+          print(f"Verified {archive_path} with four engine roots")
+          '@ | python -
+
+          $archive = "dist\DataAgent-Windows-x64.zip"
+          $checksum = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$checksum  DataAgent-Windows-x64.zip" |
+            Set-Content "dist\DataAgent-Windows-x64.zip.sha256" -Encoding ascii
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DataAgent-Windows-x64
+          path: |
+            dist/DataAgent-Windows-x64.zip
+            dist/DataAgent-Windows-x64.zip.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "dist\DataAgent-Windows-x64.zip" `
+            "dist\DataAgent-Windows-x64.zip.sha256" `
+            --repo "${{ github.repository }}" `
+            --verify-tag `
+            --generate-notes `
+            --title "Data Agent Desktop ${{ github.ref_name }}"
