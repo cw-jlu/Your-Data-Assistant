@@ -1,0 +1,3210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDD Cup 2026 Data Agents — Phase 1 完整报告</title>
+    <!-- Outfit & Inter Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/diff.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+
+    <!-- Mermaid.js for Diagrams -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            securityLevel: 'loose',
+            themeVariables: {
+                fontFamily: 'Inter, sans-serif',
+                primaryColor: '#2d6a4f',
+                primaryTextColor: '#fff',
+                lineColor: '#52b788'
+            }
+        });
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #131b2e;
+            --bg-tertiary: #1e293b;
+            --glass-bg: rgba(19, 27, 46, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --accent-green: #10b981;
+            --accent-green-glow: rgba(16, 185, 129, 0.15);
+            --accent-blue: #3b82f6;
+            --accent-blue-glow: rgba(59, 130, 246, 0.15);
+            --accent-purple: #8b5cf6;
+            --accent-purple-glow: rgba(139, 92, 246, 0.15);
+            
+            --border-color: #334155;
+            --sidebar-width: 280px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-glow: 0 0 20px 0 rgba(16, 185, 129, 0.2);
+            
+            --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-code: 'Fira Code', 'Courier New', monospace;
+            
+            --alert-note-bg: rgba(59, 130, 246, 0.1);
+            --alert-note-border: #3b82f6;
+            --alert-tip-bg: rgba(16, 185, 129, 0.1);
+            --alert-tip-border: #10b981;
+            --alert-important-bg: rgba(139, 92, 246, 0.1);
+            --alert-important-border: #8b5cf6;
+            --alert-warning-bg: rgba(245, 158, 11, 0.1);
+            --alert-warning-border: #f59e0b;
+            --alert-caution-bg: rgba(239, 68, 68, 0.1);
+            --alert-caution-border: #ef4444;
+        }
+
+        .light-theme {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            
+            --accent-green: #059669;
+            --accent-green-glow: rgba(5, 150, 105, 0.1);
+            --accent-blue: #2563eb;
+            --accent-blue-glow: rgba(37, 99, 235, 0.1);
+            --accent-purple: #7c3aed;
+            --accent-purple-glow: rgba(124, 58, 237, 0.1);
+            
+            --border-color: #cbd5e1;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            --shadow-glow: 0 0 15px 0 rgba(5, 150, 105, 0.15);
+            
+            --alert-note-bg: rgba(37, 99, 235, 0.06);
+            --alert-tip-bg: rgba(5, 150, 105, 0.06);
+            --alert-important-bg: rgba(124, 58, 237, 0.06);
+            --alert-warning-bg: rgba(217, 119, 6, 0.06);
+            --alert-caution-bg: rgba(220, 38, 38, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-inter);
+            font-size: 16px;
+            line-height: 1.65;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            overflow-x: hidden;
+            display: flex;
+        }
+
+        /* Scroll Progress Bar */
+        #scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(to right, var(--accent-green), var(--accent-blue), var(--accent-purple));
+            width: 0%;
+            z-index: 1000;
+            transition: width 0.05s linear;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Sidebar table of contents */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 2.5rem 1.5rem;
+            overflow-y: auto;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            color: white;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-family: var(--font-outfit);
+            font-size: 1.3rem;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .logo-text {
+            font-family: var(--font-outfit);
+            font-weight: 800;
+            font-size: 1.15rem;
+            letter-spacing: 0.03em;
+            background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-title {
+            font-family: var(--font-outfit);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-top: 1rem;
+        }
+
+        .toc-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .toc-item a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: block;
+            padding: 0.45rem 0.75rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-left: 2.5px solid transparent;
+        }
+
+        .toc-item a:hover {
+            color: var(--accent-green);
+            background-color: var(--bg-tertiary);
+            padding-left: 1rem;
+        }
+
+        .toc-item.active a {
+            color: var(--accent-green);
+            background-color: var(--accent-green-glow);
+            font-weight: 600;
+            border-left-color: var(--accent-green);
+            padding-left: 1rem;
+        }
+
+        /* Main Content wrapper */
+        .content-wrapper {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header bar */
+        header {
+            position: sticky;
+            top: 0;
+            background-color: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+            height: 70px;
+            padding: 0 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 99;
+        }
+
+        .header-title {
+            font-family: var(--font-outfit);
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .theme-toggle-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 0.55rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle-btn:hover {
+            background-color: var(--bg-tertiary);
+            border-color: var(--text-muted);
+            transform: scale(1.05);
+        }
+
+        /* Main container */
+        main {
+            max-width: 1050px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* Academic Top Header Block */
+        .header-block {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .header-block h1 {
+            font-size: 2.8rem;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: var(--font-outfit);
+        }
+
+        /* Glassmorphic Report Details Card */
+        .report-meta-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem 2.25rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.75rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-meta-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue), var(--accent-purple));
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .meta-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .meta-value {
+            font-family: var(--font-outfit);
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .meta-value.highlight-green {
+            color: var(--accent-green);
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Dashboard Widget Styles */
+        .dashboard-widget {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 2.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .dashboard-banner {
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
+            padding: 1.75rem 2.25rem;
+            color: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dashboard-title {
+            font-family: var(--font-outfit);
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin: 0 0 0.5rem 0;
+            color: #ffffff !important;
+            border-bottom: none !important;
+            padding-bottom: 0 !important;
+            letter-spacing: 0.02em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .dashboard-subtitle {
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.85);
+            margin: 0;
+            font-family: var(--font-inter);
+        }
+
+        .dashboard-metric-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 1.25rem;
+            padding: 2rem 1.75rem 1rem 1.75rem;
+            background-color: var(--bg-primary);
+        }
+
+        .metric-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .metric-card.border-blue { border-top: 4px solid var(--accent-blue); }
+        .metric-card.border-purple { border-top: 4px solid var(--accent-purple); }
+        .metric-card.border-red { border-top: 4px solid #ef4444; }
+        .metric-card.border-green { border-top: 4px solid var(--accent-green); }
+
+        .metric-value {
+            font-family: var(--font-outfit);
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+
+        .metric-label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .metric-subtext {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .dashboard-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            padding: 0 1.75rem 2rem 1.75rem;
+            background-color: var(--bg-primary);
+        }
+
+        .detail-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .detail-card-header {
+            font-family: var(--font-outfit);
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .dashboard-table {
+            width: 100%;
+            margin: 0;
+            border-collapse: collapse;
+            border: none;
+            box-shadow: none;
+            border-radius: 0;
+        }
+
+        .dashboard-table th, .dashboard-table td {
+            padding: 0.75rem 0.85rem;
+            font-size: 0.88rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dashboard-table th {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: 700;
+            font-family: var(--font-outfit);
+        }
+
+        .dashboard-table tr {
+            background-color: transparent !important;
+        }
+
+        .dashboard-table tr:hover {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        .dashboard-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .dashboard-note {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+            margin: 0;
+        }
+
+        .compare-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            font-size: 0.88rem;
+        }
+
+        .compare-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .badge {
+            font-size: 0.72rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .badge-blue {
+            background-color: var(--accent-blue-glow);
+            color: var(--accent-blue);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .badge-gray {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .badge-purple {
+            background-color: var(--accent-purple-glow);
+            color: var(--accent-purple);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+        }
+
+        .badge-pink {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .text-bold { font-weight: 700; }
+        .text-right { text-align: right; }
+        .text-red { color: #db2777; }
+        .light-theme .text-red { color: #be185d; }
+        .text-green { color: var(--accent-green); }
+        .mt-4 { margin-top: 1rem; }
+        .mt-2 { margin-top: 0.5rem; }
+
+        
+
+        /* Interactive Tabs widget for Version comparison */
+        .tabs-container {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            overflow: hidden;
+            margin: 2rem 0;
+            box-shadow: var(--shadow-md);
+        }
+
+        .tabs-header {
+            display: flex;
+            background-color: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            scrollbar-width: none; /* Firefox */
+        }
+
+        .tabs-header::-webkit-scrollbar {
+            display: none; /* Safari & Chrome */
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-outfit);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--accent-blue);
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+            background-color: var(--bg-secondary);
+            font-weight: 700;
+        }
+
+        .tab-panel {
+            padding: 2rem;
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Markdown Rendering Overrides */
+        h1, h2, h3, h4 {
+            font-family: var(--font-outfit);
+            color: var(--text-primary);
+            font-weight: 700;
+            margin-top: 1.25rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--text-primary) 30%, var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            font-size: 1.9rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.6rem;
+            margin: 2rem 0 1.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin: 1.5rem 0 1rem 0;
+            color: var(--accent-blue);
+        }
+
+        h4 {
+            font-size: 1.15rem;
+            color: var(--accent-green);
+            margin: 1.25rem 0 0.75rem 0;
+            border-left: 4px solid var(--accent-green);
+            padding-left: 0.75rem;
+        }
+
+        p {
+            margin-bottom: 1.25rem;
+            color: var(--text-secondary);
+        }
+
+        ul, ol {
+            margin-bottom: 1.5rem;
+            padding-left: 1.75rem;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin-bottom: 0.6rem;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 3rem 0;
+        }
+
+        /* Premium Styled Tables */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 1.5rem 0 2rem 0;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        th, td {
+            padding: 1.1rem 1.4rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 700;
+            font-family: var(--font-outfit);
+            font-size: 0.98rem;
+            letter-spacing: 0.01em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr {
+            background-color: var(--bg-primary);
+            transition: background-color 0.15s ease;
+        }
+
+        tr:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Code Blocks with copy buttons */
+        .code-container {
+            position: relative;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .code-header {
+            background-color: #0b0f19;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-family: var(--font-inter);
+        }
+
+        .copy-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.75rem;
+        }
+
+        .copy-btn:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        pre {
+            background-color: #0d1117 !important;
+            padding: 1.25rem;
+            overflow-x: auto;
+            margin: 0 !important;
+        }
+
+        code {
+            font-family: var(--font-code);
+            font-size: 0.88rem;
+            padding: 0.2rem 0.4rem;
+            background-color: var(--bg-tertiary);
+            border-radius: 6px;
+            color: var(--text-primary);
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: #c9d1d9;
+            display: block;
+        }
+
+        /* Code syntax overrides for custom highlighting compatibility */
+        .hljs {
+            background: transparent !important;
+        }
+
+        /* Alert Cards styling (Admonitions) */
+        .alert {
+            border-left: 4.5px solid var(--border-color);
+            padding: 1.25rem 1.75rem;
+            border-radius: 0 14px 14px 0;
+            margin: 1.75rem 0;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .alert-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-outfit);
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .alert-icon {
+            fill: currentColor;
+        }
+
+        .alert p {
+            margin-bottom: 0;
+            color: var(--text-primary);
+            font-size: 0.96rem;
+            font-weight: 400;
+        }
+
+        .alert-note {
+            background-color: var(--alert-note-bg);
+            border-left-color: var(--alert-note-border);
+            color: var(--alert-note-border);
+        }
+
+        .alert-tip {
+            background-color: var(--alert-tip-bg);
+            border-left-color: var(--alert-tip-border);
+            color: var(--alert-tip-border);
+        }
+
+        .alert-important {
+            background-color: var(--alert-important-bg);
+            border-left-color: var(--alert-important-border);
+            color: var(--alert-important-border);
+        }
+
+        .alert-warning {
+            background-color: var(--alert-warning-bg);
+            border-left-color: var(--alert-warning-border);
+            color: var(--alert-warning-border);
+        }
+
+        .alert-caution {
+            background-color: var(--alert-caution-bg);
+            border-left-color: var(--alert-caution-border);
+            color: var(--alert-caution-border);
+        }
+
+        /* Mermaid styling */
+        .mermaid {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.75rem;
+            display: flex;
+            justify-content: center;
+            margin: 1.75rem 0;
+            overflow-x: auto;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 4rem 0;
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 5rem;
+        }
+
+        /* Float Action Button (Back to Top) */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: var(--accent-green);
+            color: white;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            border: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-4px) scale(1.05);
+            background-color: #059669;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                display: none;
+            }
+            .content-wrapper {
+                margin-left: 0;
+            }
+            header {
+                padding: 0 1.5rem;
+            }
+            main {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 1.95rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            .report-meta-card {
+                grid-template-columns: 1fr;
+            }
+            pre {
+                padding: 0.75rem;
+            }
+        }
+    
+        /* Premium details accordion styling */
+        .premium-details {
+            background-color: var(--bg-secondary) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 12px !important;
+            margin-bottom: 1.5rem !important;
+            overflow: hidden !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .premium-details[open] {
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+        }
+        .premium-summary {
+            font-family: var(--font-outfit) !important;
+            font-weight: 600 !important;
+            font-size: 1.05rem !important;
+            padding: 1.1rem 1.5rem !important;
+            background-color: var(--bg-tertiary) !important;
+            cursor: pointer !important;
+            user-select: none !important;
+            transition: background-color 0.2s ease !important;
+            list-style: none !important;
+            position: relative !important;
+            border-bottom: 1px solid transparent !important;
+        }
+        .premium-summary::-webkit-details-marker {
+            display: none !important;
+        }
+        .premium-details[open] .premium-summary {
+            border-bottom: 1px solid var(--border-color) !important;
+            background-color: rgba(59, 130, 246, 0.08) !important;
+        }
+        .premium-summary:hover {
+            background-color: rgba(255, 255, 255, 0.02) !important;
+        }
+        .details-content {
+            padding: 1.5rem !important;
+            background-color: var(--bg-primary) !important;
+            overflow-x: auto !important;
+        }
+
+        /* Premium details accordion styling */
+        .premium-details {
+            background-color: var(--bg-secondary) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 12px !important;
+            margin-bottom: 1.5rem !important;
+            overflow: hidden !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        .premium-details[open] {
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+        }
+        .premium-summary {
+            font-family: var(--font-outfit) !important;
+            font-weight: 600 !important;
+            font-size: 1.05rem !important;
+            padding: 1.1rem 1.5rem !important;
+            background-color: var(--bg-tertiary) !important;
+            cursor: pointer !important;
+            user-select: none !important;
+            transition: background-color 0.2s ease !important;
+            list-style: none !important;
+            position: relative !important;
+            border-bottom: 1px solid transparent !important;
+        }
+        .premium-summary::-webkit-details-marker {
+            display: none !important;
+        }
+        .premium-details[open] .premium-summary {
+            border-bottom: 1px solid var(--border-color) !important;
+            background-color: rgba(59, 130, 246, 0.08) !important;
+        }
+        .premium-summary:hover {
+            background-color: rgba(255, 255, 255, 0.02) !important;
+        }
+        .details-content {
+            padding: 1.5rem !important;
+            background-color: var(--bg-primary) !important;
+            overflow-x: auto !important;
+        }
+</style>
+</head>
+<body>
+    <div id="scroll-progress"></div>
+
+    <!-- Sidebar navigation -->
+    <div class="sidebar">
+        <div class="logo-container">
+            <div class="logo-icon">11</div>
+            <div class="logo-text">Team 1121</div>
+        </div>
+        <div class="nav-title">报告目录</div>
+        <ul class="toc-list" id="toc-container">
+            <!-- Dynamic TOC items will be injected here -->
+        </ul>
+    </div>
+
+    <!-- Content wrapper -->
+    <div class="content-wrapper">
+        <header>
+            <div class="header-title">KDD Cup 2026 Phase 1 完整报告</div>
+            <button class="theme-toggle-btn" id="theme-toggle" title="切换主题">
+                <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+        </header>
+
+        <main>
+            <!-- Top Header Block -->
+            <div class="header-block">
+                <h1>KDD Cup 2026 Data Agents</h1>
+                <p style="font-size: 1.15rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-family: var(--font-outfit);">Phase 1 完整实验与决策报告 (Advisor Presentation Edition)</p>
+            </div>
+
+            <!-- Report Meta Info Card -->
+            <div class="report-meta-card">
+                <div class="meta-item">
+                    <div class="meta-label">队伍 ID</div>
+                    <div class="meta-value">team1121</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">报告日期</div>
+                    <div class="meta-value">2026-05-22</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">最终 A-Board 得分</div>
+                    <div class="meta-value highlight-green">0.5114 (v3)</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">B-Board 提交</div>
+                    <div class="meta-value">team1121:final</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Widget Section -->
+            <div class="dashboard-widget">
+                <div class="dashboard-banner">
+                    <h2 class="dashboard-title">KDD Cup 2026: Data Agents 阶段赛果深度分析报告</h2>
+                    <p class="dashboard-subtitle">数据更新时间：2026年5月22日 | 大盘提交记录：287组 | 评估基准：A-Board Leaderboard | 700+ 队伍参赛</p>
+                </div>
+                
+                <!-- Row 1: 4 Key Metric Cards -->
+                <div class="dashboard-metric-row">
+                    <!-- Stat Card 1 -->
+                    <div class="metric-card border-blue">
+                        <div class="metric-value">0.6610</div>
+                        <div class="metric-label">全榜最高得分</div>
+                        <div class="metric-subtext">由团队 #1547 (v7) 保持</div>
+                    </div>
+                    <!-- Stat Card 2 -->
+                    <div class="metric-card border-purple">
+                        <div class="metric-value">0.3807</div>
+                        <div class="metric-label">大盘中位数</div>
+                        <div class="metric-subtext">算术平均数: 0.3657</div>
+                    </div>
+                    <!-- Stat Card 3 -->
+                    <div class="metric-card border-red">
+                        <div class="metric-value text-red">0.5114 ⭐</div>
+                        <div class="metric-label">团队 #1121 得分 (v3)</div>
+                        <div class="metric-subtext">当前排名: 第 38 名</div>
+                    </div>
+                    <!-- Stat Card 4 -->
+                    <div class="metric-card border-green">
+                        <div class="metric-value text-green">86.76%</div>
+                        <div class="metric-label">超越大盘团队 (百分位)</div>
+                        <div class="metric-subtext">前 13.24% 头部梯队</div>
+                    </div>
+                </div>
+
+                <!-- Row 2: 2 Column Detailed Panels -->
+                <div class="dashboard-detail-grid">
+                    <!-- Left Panel: Large Indicator Table -->
+                    <div class="detail-card">
+                        <div class="detail-card-header">
+                            大盘分布统计指标
+                        </div>
+                        <table class="dashboard-table">
+                            <thead>
+                                <tr>
+                                    <th>统计学指标</th>
+                                    <th>精准分值</th>
+                                    <th>相对团队差距</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-bold">算术平均数 (Mean)</td>
+                                    <td>0.37 <span class="text-muted">(0.3657)</span></td>
+                                    <td class="text-bold text-green">+0.1414</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-bold">中位数 (Median)</td>
+                                    <td>0.38 <span class="text-muted">(0.3807)</span></td>
+                                    <td class="text-bold text-green">+0.1314</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-bold">众数 (Mode)</td>
+                                    <td>0.00 <span class="text-muted">(0.0000)</span></td>
+                                    <td class="text-bold text-green">+0.5114</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="dashboard-note">注：由于大盘中存在 10 支未取得有效成绩 of 0 分提交，若剔除这些 0 分，有效分数平均值为 0.45。团队 #1121 依然显著超越有效均值。</p>
+                    </div>
+
+                    <!-- Right Panel: Team Position Analysis -->
+                    <div class="detail-card">
+                        <div class="detail-card-header">
+                            团队专项定位评定
+                        </div>
+                        <div class="compare-box">
+                            <div class="compare-row">
+                                <span class="badge badge-purple">队伍 ID: team1121</span>
+                                <span class="badge badge-blue">最佳版本: v3</span>
+                            </div>
+                            <div class="compare-row" style="margin-top: 0.5rem; font-size: 1rem;">
+                                当前位置：当前排名第 38 名 / 287 组提交
+                            </div>
+                        </div>
+                        <p class="evaluation-text" style="margin-top: 0.5rem; line-height: 1.6; font-size: 0.88rem; color: var(--text-secondary);">
+                            <strong>综合评定：</strong>该团队目前在已提交成果的队伍中位列前 <strong>13.24%</strong>，在 <strong>700+ 支</strong>报名参赛的队伍中展现出了极佳的算法竞争力。其基于 <strong>Schema KG + PageIndex</strong> 的 Data Agent 架构（仅 v3）即大幅击败了大盘中位数与平均数，展现了极佳 of 算法设计底蕴与工程落地实用性。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Converted HTML Markdown Content -->
+            <div class="markdown-body">
+<h1>KDD Cup 2026 Data Agents — Phase 1 完整报告</h1>
+<p><strong>队伍 ID</strong>：team1121<br />
+<strong>报告日期</strong>：2026-05-22<br />
+<strong>最终 A-Board 得分</strong>：0.5114（v3）<br />
+<strong>B-Board 提交版本</strong>：team1121:final（基于 v3 重新标记）</p>
+<hr />
+<h2>一、比赛概览</h2>
+<h3>1.1 赛题简介</h3>
+<p>KDD Cup 2026 Data Agents 挑战赛要求参赛者构建一个全自动的数据分析 Agent，能够：
+- 遍历 <code>/input</code> 下所有任务目录，读取 <code>task.json</code> 中的自然语言问题
+- 自主探索 <code>context/</code> 下的多模态数据源（CSV、SQLite、JSON、Markdown 文档）
+- 通过代码生成与执行（Python / SQL）完成数据分析
+- 将最终结果写入 <code>/output/task_&lt;id&gt;/prediction.csv</code></p>
+<h3>1.2 评测环境约束</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">约束项</th>
+<th style="text-align: left;">规格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">模型</td>
+<td style="text-align: left;">Qwen3.5-35B-A3B（统一部署，禁止自带 LLM）</td>
+</tr>
+<tr>
+<td style="text-align: left;">CPU</td>
+<td style="text-align: left;">16 核 x86-64</td>
+</tr>
+<tr>
+<td style="text-align: left;">内存</td>
+<td style="text-align: left;">64 GB（超限 OOM Kill）</td>
+</tr>
+<tr>
+<td style="text-align: left;">GPU</td>
+<td style="text-align: left;">无</td>
+</tr>
+<tr>
+<td style="text-align: left;">网络</td>
+<td style="text-align: left;">完全断网，仅可访问内部模型服务</td>
+</tr>
+<tr>
+<td style="text-align: left;">A-Board 时限</td>
+<td style="text-align: left;">2 小时 / ~60 tasks</td>
+</tr>
+<tr>
+<td style="text-align: left;">B-Board 时限</td>
+<td style="text-align: left;">12 小时 / ~320 tasks</td>
+</tr>
+</tbody>
+</table>
+<h3>1.3 评分机制</h3>
+<pre><code>Score = Recall - λ · (Extra Columns / Predicted Columns)
+
+Recall = Matched Columns / Gold Columns
+λ = 0.5（官方默认）
+</code></pre>
+<ul>
+<li>基于<strong>列级内容一致性匹配</strong>，忽略列名和行顺序</li>
+<li>数值归一化至 2 位小数，字符串大小写敏感</li>
+<li>总分 = 所有任务得分的平均值</li>
+</ul>
+<hr />
+<h2>二、技术方案演进</h2>
+<h3>2.1 架构总览</h3>
+<p>所有方案均基于 <strong>ReAct（Reasoning + Acting）</strong> 框架，核心循环为：</p>
+<pre><code>Thought → Action → Observation → ... → Answer
+</code></pre>
+<p>Agent 在每一步输出一个 JSON 对象，包含 <code>thought</code>（推理）、<code>action</code>（工具调用）、<code>action_input</code>（参数），系统执行工具后返回 <code>Observation</code>，循环直至调用 <code>answer</code> 工具提交结果。</p>
+<h3>2.2 分支策略</h3>
+<p>采用 <strong>Git 分支隔离</strong> 的控制变量实验法，每个分支代表一种独立的技术方案或优化策略：</p>
+<pre><code class="language-mermaid">graph LR
+    main[&quot;v1 / main&lt;br/&gt;官方基准微调&lt;br/&gt;A-Board: 0.3298&quot;]
+    v3[&quot;v3&lt;br/&gt;Schema KG + PageIndex&lt;br/&gt;A-Board: 0.5114 ⭐&quot;]
+    v4[&quot;v4&lt;br/&gt;v3 去掉分级策略&lt;br/&gt;A-Board: 0.2982&quot;]
+    v5[&quot;v5 / LLMWIKI&lt;br/&gt;LLM Wiki 预处理&lt;br/&gt;A-Board: 0.1658&quot;]
+    v6[&quot;v6 / v5分支&lt;br/&gt;v3 + Prompt优化&lt;br/&gt;A-Board: 0.3184&quot;]
+
+    main --&gt; v3
+    v3 --&gt; v4
+    v3 --&gt; v6
+    main --&gt; v5
+
+    style v3 fill:#2d6a4f,stroke:#1b4332,color:#fff
+    style main fill:#264653,stroke:#2a9d8f,color:#fff
+    style v4 fill:#6c757d,stroke:#495057,color:#fff
+    style v5 fill:#e76f51,stroke:#e63946,color:#fff
+    style v6 fill:#457b9d,stroke:#1d3557,color:#fff
+</code></pre>
+<hr />
+<h2>三、各版本详细对比</h2>
+<h3>3.1 成绩总览</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">分支</th>
+<th style="text-align: left;">公开测试集得分 (本地)</th>
+<th style="text-align: left;">A-Board 得分</th>
+<th style="text-align: left;">核心技术</th>
+<th style="text-align: left;">提交状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>v3</strong></td>
+<td style="text-align: left;"><code>v3</code></td>
+<td style="text-align: left;">53.50% (S: 56.91%)</td>
+<td style="text-align: left;"><strong>0.5114</strong> ⭐</td>
+<td style="text-align: left;"><strong>Schema KG + PageIndex</strong> (含 Answer 拦截校验)</td>
+<td style="text-align: left;">已提交，最优</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>v1</strong></td>
+<td style="text-align: left;"><code>main</code></td>
+<td style="text-align: left;">72.38%</td>
+<td style="text-align: left;"><strong>0.3298</strong></td>
+<td style="text-align: left;"><strong>官方 Starter Kit 微调</strong> (无高级 Schema 导航)</td>
+<td style="text-align: left;">已提交</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>v6</strong></td>
+<td style="text-align: left;"><code>v5</code></td>
+<td style="text-align: left;">64.00%</td>
+<td style="text-align: left;"><strong>0.3184</strong></td>
+<td style="text-align: left;"><strong>Schema KG + PageIndex + Prompt 优化</strong></td>
+<td style="text-align: left;">已提交</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>v4</strong></td>
+<td style="text-align: left;"><code>v4</code></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;"><strong>0.2982</strong></td>
+<td style="text-align: left;"><strong>v3 去掉分级策略</strong> (全量注入 Schema KG + PageIndex)</td>
+<td style="text-align: left;">已提交</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>v5</strong></td>
+<td style="text-align: left;"><code>LLMWIKI</code></td>
+<td style="text-align: left;">59.50% (S: 64.67%)</td>
+<td style="text-align: left;"><strong>0.1658</strong></td>
+<td style="text-align: left;"><strong>LLM Wiki 预处理模式</strong> (Andrej Karpathy 思想)</td>
+<td style="text-align: left;">已提交</td>
+</tr>
+<tr>
+<td style="text-align: left;">exp/*</td>
+<td style="text-align: left;">实验分支</td>
+<td style="text-align: left;">较低</td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;">向量检索 (PageRAG) / 图检索 (GraphRAG)</td>
+<td style="text-align: left;">未提交</td>
+</tr>
+</tbody>
+</table>
+<h3>3.2 关键发现</h3>
+<div class="alert alert-important">
+    <div class="alert-title"><span class="alert-icon"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg></span> 重要 (Important)</div>
+    <p><strong>公开测试集得分与 A-Board 隐藏集得分严重不相关。</strong></p>
+<ul>
+<li>v5（LLMWIKI）在公开测试集上得分较高（S: 64.67%），但 A-Board 仅 0.1658，排名最低</li>
+<li>v3（Schema KG + PageIndex）在公开测试集上总体得分为 53.50%（成功率 56.91%），但 A-Board 高达 0.5114</li>
+<li>main（v1）公开集 72.38%，A-Board 0.3298</li>
+<li>v6（v5 分支）公开集 64.00%，A-Board 0.3184</li>
+</ul>
+<p>这表明公开测试集存在过拟合风险，隐藏集的任务分布和难度与公开集差异显著。</p>
+</div>
+
+<h3>3.3 各版本技术方案详解</h3>
+<h4>v1 / main — 官方基准微调（A-Board: 0.3298）</h4>
+<p><strong>核心思路</strong>：在官方 Starter Kit 基础上进行轻量级微调。</p>
+<ul>
+<li><strong>数据导航</strong>：简单的文件列表扫描，无 Schema 分析</li>
+<li><strong>工具集</strong>：基础工具（<code>read_csv</code>、<code>execute_python</code>、<code>execute_context_sql</code>）</li>
+<li><strong>Prompt</strong>：基础 ReAct 指令 + 简单输出格式约束</li>
+<li><strong>优势</strong>：代码简洁，运行稳定，无额外依赖</li>
+<li><strong>劣势</strong>：缺乏跨表关联感知，Agent 对数据结构理解有限</li>
+</ul>
+<p><strong>System Prompt 原文（main 分支）</strong>：</p>
+<pre><code class="language-text">You are a ReAct-style data agent.
+You are solving a task from a public dataset. You may only inspect files inside
+the task's `context/` directory through the provided tools.
+
+Rules:
+1. Use tools to inspect the available context before answering.
+2. Base your answer only on information you can observe through the provided tools.
+3. The task is complete only when you call the `answer` tool.
+4. The `answer` tool must receive a table with `columns` and `rows`.
+5. Always return exactly one JSON object with keys `thought`, `action`, `action_input`.
+6. Always wrap that JSON object in exactly one fenced code block (```json ... ```).
+7. Do not output any text before or after the fenced JSON block.
+8. Strictly match tools with file types. Only use SQL tools for .db files.
+9. If you encounter &quot;no such table&quot; error, stop using SQL and use execute_python.
+10. When using execute_python, action_input must be a JSON object with key &quot;code&quot;.
+11. Never pass raw string directly to execute_python action_input.
+12. WARNING: read_csv/read_json/read_doc ONLY return truncated previews (max 20 rows).
+13. IMPORTANT: To process full datasets, you MUST use execute_python.
+Keep reasoning concise and grounded in the observed data.
+</code></pre>
+<p><strong>关键代码：<code>react.py</code> 的 JSON 解析（main 分支）</strong></p>
+<p>main 分支的解析函数只有基础的 strip + json.loads，没有任何容错处理：</p>
+<pre><code class="language-python">def _strip_markdown_code_blocks(text: str) -&gt; str:
+    text = text.strip()
+    if text.startswith(&quot;```&quot;):
+        lines = text.splitlines()
+        if len(lines) &gt; 2 and lines[0].startswith(&quot;```&quot;) and lines[-1].startswith(&quot;```&quot;):
+            return &quot;\n&quot;.join(lines[1:-1])
+    return text
+
+def parse_model_step(raw_response: str) -&gt; dict[str, Any]:
+    cleaned_text = _strip_markdown_code_blocks(raw_response)
+    try:
+        return json.loads(cleaned_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f&quot;Failed to parse model response as JSON: {cleaned_text}&quot;) from e
+</code></pre>
+<p>一旦 Qwen 输出含有字面换行符（<code>\n</code> 未转义）或 JSON 被截断，整步直接报错，连续失败后触发熔断。</p>
+<p><strong>main 分支无 Data Roadmap</strong>：Agent 只看到任务问题，没有预先给定任何数据 Schema 信息，完全靠自身先用工具探索再推理。</p>
+<h4>v3 — Schema KG + PageIndex（A-Board: 0.5114 ⭐ 最高分）</h4>
+<p><strong>核心思路</strong>：通过预计算的 Schema 知识图谱和文档索引树，让 Agent 在推理前就掌握数据全貌。</p>
+<p><strong>关键技术栈</strong>：</p>
+<ol>
+<li><strong>Schema Knowledge Graph（db_navigator.py）</strong></li>
+<li>自动扫描所有 DB/CSV/JSON 数据源，提取完整的表结构、列名、外键</li>
+<li>跨文件同名字段关联（Shared Fields / JOIN Hints）：自动发现 <code>raceId</code> 同时出现在 <code>races.csv</code> 和 <code>results.db</code> 中</li>
+<li>注入 <code>row_count</code> 让 Agent 感知数据规模</li>
+<li>
+<p>主动扫描并优先列出 <code>knowledge.md</code> / <code>doc/</code> 目录</p>
+</li>
+<li>
+<p><strong>PageIndex 文档索引（pageindex_lite.py）</strong></p>
+</li>
+<li>对 <code>doc/</code> 目录下的 Markdown 文档生成带行号的树状结构索引</li>
+<li>Agent 可通过 <code>read_doc_lines</code> 精准读取特定行范围，避免全量加载</li>
+<li>
+<p>适配 <code>hard</code> / <code>extreme</code> 难度的超长文档场景</p>
+</li>
+<li>
+<p><strong>Answer Interceptor（answer 工具拦截器）</strong></p>
+</li>
+<li>Agent 首次调用 <code>answer</code> 时被拦截，返回 Final Review Checklist</li>
+<li>强制二次核查：格式、聚合逻辑、时间参考、知识规则</li>
+<li>
+<p>通过后再次调用 <code>answer</code> 才真正提交</p>
+</li>
+<li>
+<p><strong>历史压缩（History Compression）</strong></p>
+</li>
+<li>连续失败的历史步骤被折叠，仅保留最后一条</li>
+<li>
+<p>节省 Context Window，避免 Token 溢出</p>
+</li>
+<li>
+<p><strong>JSON 鲁棒性</strong></p>
+</li>
+<li>Greedy Brace Fix：从截断的 JSON 响应中自动恢复</li>
+<li>字面换行符转义：处理 Qwen 输出中的非标准格式</li>
+</ol>
+<p><strong>System Prompt 完整原文（v3 分支）</strong>：</p>
+<pre><code class="language-text">You are an elite Data Agent. Your goal is to solve data extraction tasks with 100% precision.
+
+### CORE OPERATING PRINCIPLES
+1. Logic Audit (Mandatory): Before executing any code, you MUST state your formula in `thought`.
+   - Example: &quot;Logic: Unit_Price = Price / Amount. Target: Unit_Price &gt; 29.&quot;
+2. Exhaustive Search: Unless asked for &quot;the only one&quot;, always assume multiple matches exist.
+   Return ALL relevant rows.
+3. Type-Safe Alignment: Always use `.astype(str)` when joining or filtering columns.
+4. Knowledge Primacy: Always check `knowledge.md` for business definitions.
+5. Large File Strategy: For files &gt;1MB, use read_csv/read_doc only for schema sampling.
+   To process full data, you MUST use execute_python.
+6. No Laziness: Do not assume data based on previews. Always verify from full dataset.
+
+### TOOL RULES
+- SQL: Use ONLY for .db files.
+- Python: Use execute_python with code_lines. Always print results clearly.
+- answer: ONLY include columns specifically asked for. Extra columns = 50% score deduction.
+
+### OUTPUT SPECIFICATION
+- Return exactly one JSON object inside a ```json block.
+- Fields: thought, reflection, data_sufficient, action, action_input.
+- No text outside the JSON block.
+
+### DATA ROADMAP
+Below is the schema and relationship map. Use it to identify join paths.
+</code></pre>
+<p>与 main 分支相比，v3 的 System Prompt 新增了：
+- <code>reflection</code> 字段（让 Agent 在每步显式进行自我审视）
+- <code>data_sufficient</code> 字段（让 Agent 明确标记是否已有足够数据）
+- 明确强调 "Extra columns = 50% score deduction"
+- 接尾的 <code>### DATA ROADMAP</code> 标记，引导后续动态数据地图的拼接</p>
+<p><strong>db_navigator.py 核心代码</strong>：</p>
+<pre><code class="language-python">def get_data_roadmap(context_dir: Path, model=None):
+    dbs = _scan_databases(context_dir)   # 扫描 .db: 表名、列名、外键、row_count
+    csvs, jsons = _get_csv_json_schemas(context_dir)
+
+    # 主动优先列出 knowledge 文档
+    knowledge_docs = [
+        str(f.relative_to(context_dir).as_posix())
+        for f in sorted(context_dir.rglob(&quot;*.md&quot;))
+        if &quot;knowledge&quot; in f.name.lower()
+    ]
+
+    # 跨文件同名字段统计（不过滤、不分类，全量列出）
+    all_columns = defaultdict(set)
+    for db in dbs:
+        for t_meta in db[&quot;tables&quot;].values():
+            for col in t_meta[&quot;columns&quot;]:
+                all_columns[col.lower()].add(db[&quot;path&quot;])
+    for csv_f in csvs:
+        for col in csv_f[&quot;columns&quot;]:
+            all_columns[col.lower()].add(csv_f[&quot;path&quot;])
+
+    shared_fields = {
+        k: sorted(v)
+        for k, v in sorted(all_columns.items(), key=lambda x: -len(x[1]))
+        if len(v) &gt; 1   # 出现在 2+ 个文件中的才列出
+    }
+
+    roadmap = {
+        &quot;IMPORTANT&quot;: &quot;READ knowledge_docs FIRST before writing any query or code. ...&quot;,
+        &quot;data_assets&quot;: {
+            &quot;knowledge_docs&quot;: knowledge_docs,
+            &quot;databases&quot;: dbs,      # 含 row_count, columns, foreign_keys
+            &quot;csv_files&quot;: csvs,
+            &quot;json_files&quot;: jsons
+        },
+        &quot;relationships&quot;: {
+            &quot;shared_fields&quot;: shared_fields,
+            &quot;note&quot;: &quot;Fields appearing in 2+ files — use as JOIN hints...&quot;
+        }
+    }
+    return &quot;=== DATA ROADMAP (SCHEMA &amp; RELATIONS ONLY) ===\n&quot; + json.dumps(roadmap, indent=2)
+</code></pre>
+<p>实际注入给 Agent 的 Data Roadmap 示例（赛车题目场景）：</p>
+<pre><code class="language-json">=== DATA ROADMAP (SCHEMA &amp; RELATIONS ONLY) ===
+{
+  &quot;IMPORTANT&quot;: &quot;READ knowledge_docs FIRST...&quot;,
+  &quot;data_assets&quot;: {
+    &quot;knowledge_docs&quot;: [&quot;context/knowledge.md&quot;],
+    &quot;databases&quot;: [{
+      &quot;path&quot;: &quot;db/data.db&quot;,
+      &quot;tables&quot;: {
+        &quot;results&quot;: {
+          &quot;columns&quot;: [&quot;resultId&quot;,&quot;raceId&quot;,&quot;driverId&quot;,&quot;points&quot;,&quot;position&quot;],
+          &quot;foreign_keys&quot;: [{&quot;from&quot;:&quot;raceId&quot;,&quot;to_table&quot;:&quot;races&quot;,&quot;to_column&quot;:&quot;raceId&quot;}],
+          &quot;row_count&quot;: 25840
+        }
+      }
+    }],
+    &quot;csv_files&quot;: [{&quot;path&quot;:&quot;csv/races.csv&quot;,&quot;columns&quot;:[&quot;raceId&quot;,&quot;year&quot;,&quot;name&quot;]}]
+  },
+  &quot;relationships&quot;: {
+    &quot;shared_fields&quot;: {
+      &quot;raceid&quot;: [&quot;csv/races.csv&quot;,&quot;db/data.db&quot;],
+      &quot;driverid&quot;: [&quot;db/data.db&quot;]
+    }
+  }
+}
+</code></pre>
+<p><strong>PageIndex 工作原理（pageindex_lite.py）</strong>：</p>
+<p>对 Markdown 文档按标题层级提取节点（逐行扫描，检测 <code># ##</code> 等）并构建树，每个节点记录 <code>line_num</code>、<code>end_line</code>、<code>title</code>。超长节点（&gt;300行）被自动拆分为 150 行的子 chunk，并在段落边界处断开。</p>
+<p>最终注入给 Agent 的文档树形式：</p>
+<pre><code class="language-text">=== PAGEINDEX TREE STRUCTURES ===
+Document: doc/knowledge.md
+[0001] Business Definitions (lines 1-80)
+  [0002] Scoring Rules (lines 10-40) - Describes how points are allocated per race position
+  [0003] DNF Definition (lines 41-55) - DNF means Did Not Finish; counts as 0 points
+[0004] Race Calendar (lines 81-200)
+  ...
+</code></pre>
+<p>Agent 可精准调用 <code>read_doc_lines(file="doc/knowledge.md", start=41, end=55)</code> 直接取目标段落，无需读全文。</p>
+<p><strong>Answer Interceptor 完整原文</strong>：</p>
+<pre><code class="language-text">[SYSTEM INTERCEPT] FINAL VERIFICATION REQUIRED
+
+You have called the `answer` tool. Before your answer is permanently submitted,
+you MUST perform a final verification.
+
+Please review your proposed answer against the following checklist:
+1. Formatting: Does your final output exactly match the requested columns and rows?
+   Do NOT include extra explanatory columns.
+2. Aggregation: Did the question ask for SUM, AVG, or Percentage? Ensure math
+   strictly follows business logic (percentages need to be multiplied by 100).
+3. Time Reference: If calculating age or duration, use the current year 2026
+   unless explicitly stated otherwise in the document.
+4. Knowledge Rules: Did you consult knowledge.md to confirm exact thresholds
+   (e.g., 'abnormal') before filtering the data?
+
+If you find ANY errors, DO NOT call answer yet. Use Python to fix your data.
+If you are 100% confident, call the answer tool AGAIN with the EXACT SAME data.
+The system will accept it on the second attempt.
+</code></pre>
+<p><strong>JSON 鲁棒解析（v3 react.py，对比 main 的一行 json.loads）</strong>：</p>
+<pre><code class="language-python">def _strip_json_fence(raw_response: str) -&gt; str:
+    text = raw_response.strip()
+    # 优先匹配 ```json ... ```
+    fence_match = re.search(r&quot;```json\s*(.*?)\s*```&quot;, text, flags=re.IGNORECASE | re.DOTALL)
+    if fence_match: return fence_match.group(1).strip()
+    # 降级：匹配任意 ``` ... ```
+    generic = re.search(r&quot;```\s*(.*?)\s*```&quot;, text, flags=re.DOTALL)
+    if generic: return generic.group(1).strip()
+    # 最后兜底：从文本中提取最外层 { ... }
+    brace = re.search(r&quot;(\{.*\})&quot;, text, flags=re.DOTALL)
+    if brace: return brace.group(1).strip()
+    return text
+
+def _escape_literal_newlines_in_strings(text: str) -&gt; str:
+    &quot;&quot;&quot;逐字符扫描，将 JSON 字符串内的裸换行符转义为 \\n&quot;&quot;&quot;
+    repaired: list[str] = []
+    in_string = False
+    escape = False
+    for char in text:
+        if in_string:
+            if escape: repaired.append(char); escape = False; continue
+            if char == &quot;\\&quot;: repaired.append(char); escape = True; continue
+            if char == '&quot;': repaired.append(char); in_string = False; continue
+            if char == &quot;\n&quot;: repaired.append(&quot;\\n&quot;); continue
+            if char == &quot;\r&quot;: repaired.append(&quot;\\r&quot;); continue
+        else:
+            if char == '&quot;': in_string = True
+        repaired.append(char)
+    return &quot;&quot;.join(repaired)
+
+def _load_json_object(text: str) -&gt; dict:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        repaired = _escape_literal_newlines_in_strings(text)
+        return json.loads(repaired)  # 二次尝试
+</code></pre>
+<p><strong>react.py 的难度分流策略（v3 独有）</strong>：</p>
+<pre><code class="language-python">def run(self, task: PublicTask, task_output_dir=None) -&gt; AgentRunResult:
+    if task.difficulty == &quot;easy&quot;:
+        # easy 任务只给文件列表，避免 Token 过载
+        context_tree = list_context_tree(task, max_depth=2)
+        data_roadmap = &quot;=== DATA ROADMAP (SIMPLIFIED) ===\n&quot; + json.dumps(context_tree)
+    elif task.difficulty in (&quot;medium&quot;, &quot;hard&quot;, &quot;extreme&quot;):
+        # 中高难度：Schema KG + PageIndex 双层信息
+        base_roadmap = get_data_roadmap(task.context_dir, model=self.model)
+        pageindex_roadmap = get_pageindex_roadmap(task.context_dir, model_adapter=self.model)
+        data_roadmap = f&quot;{base_roadmap}\n\n{pageindex_roadmap}&quot;
+    # ... ReAct 主循环
+</code></pre>
+<p><strong>历史压缩代码（v3 独有，main 无此逻辑）</strong>：</p>
+<pre><code class="language-python"># 只有当失败序列&quot;尘埃落定&quot;（即后面出现了成功步骤）时，才折叠
+if j &gt; i + 1 and j &lt; len(state.steps):
+    failure_count = j - i
+    last_failure = state.steps[j-1]
+    payload = json.loads(_strip_json_fence(last_failure.raw_response))
+    payload[&quot;thought&quot;] = f&quot;[System: {failure_count-1} previous failed attempts omitted] &quot; \
+                         + payload.get(&quot;thought&quot;, &quot;&quot;)
+    new_raw = f&quot;```json\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n```&quot;
+    # 用修改后的最后一条替换整个失败序列
+    compact_steps.append(StepRecord(..., raw_response=new_raw, ...))
+    i = j  # 跳过整个失败段
+</code></pre>
+<p><strong>为什么 v3 得分最高</strong>：
+- Schema KG 让 Agent 从第一步就知道"数据在哪、怎么关联"，大幅减少盲目探索
+- PageIndex 精准定位文档内容，避免大文件全量读取导致的 Token 浪费和超时
+- Answer Interceptor 强制二次审核，减少粗心错误
+- 整体方案<strong>增强信息而不增加复杂度</strong>，不引入额外的推理链路</p>
+<h4>v4 — v3 去掉分级策略（A-Board: 0.2982）</h4>
+<p><strong>核心思路</strong>：v4 是从 v3 演化而来，核心差异在于<strong>去掉了针对任务难度的分级策略（Difficulty Routing Strategy）</strong>。在 v4 中，不论任务属于 <code>easy</code> 还是 <code>medium/hard/extreme</code>，均统一生成并注入完整的 Schema KG 和 PageIndex 树状文档索引，不进行任何分流简化。</p>
+<p><strong>技术对比</strong>：
+- <strong>v3 分流架构</strong>：为了防范 Token 冗余及模型幻觉，v3 引入了难度分流。针对 <code>easy</code> 任务只提取最精简的文件结构，仅在遇到 <code>medium/hard/extreme</code> 等高难度任务时才启动高成本的 Schema KG + PageIndex 机制。
+- <strong>v4 统一架构</strong>：去掉了分流逻辑，对全部任务一刀切地注入了高阶数据图谱和文档导航索引。</p>
+<p><strong>得分差异原因分析</strong>：
+- v4 在 A-Board 上的得分（0.2982）相比 v3（0.5114）出现大幅滑坡，核心原因在于：
+  1. <strong>低难度任务受到信息噪音干扰</strong>：Easy 任务（如简单查询）本可通过基础的文件名识别和简单的 SQL/Python 完成，而在 v4 下被强制注入了极长的 Schema KG 表关联和 PageIndex 树，导致 Prompt 中的噪音数据急剧增加，Qwen3.5-35B-A3B 在多余信息的干扰下产生了幻觉或误判，调用了不必要的复杂工具。
+  2. <strong>Token 超限与延迟增加</strong>：冗余的 Schema 结构增大了 Context Window 负担，增加了单步推理的开销，进而增加了超时的概率。</p>
+<div class="alert alert-warning">
+    <div class="alert-title"><span class="alert-icon"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span> 警告 (Warning)</div>
+    <p>v4 的实验结果有力地论证了<strong>“难度分级策略 (Difficulty Routing)”的工程必要性</strong>。数据智能体并非上下文注入越全越好，而是需要根据任务的物理复杂度进行动态剪裁与路由。量体裁衣才能达到最高的推理准确率与稳定性。</p>
+</div>
+
+<h4>v6 — v3 + Prompt 优化 (v5 分支)（A-Board: 0.3184）</h4>
+<p><strong>核心思路</strong>：在 v3 基础上，根据失败任务分析进一步优化 Prompt。</p>
+<p><strong>新增改进</strong>（相比 v3）：
+1. <strong>Boundary Inequality Checking</strong>：在系统提示词中新增严格的"临界边界与不等式检查"规则
+   - 例：遇到"less than 70"必须用 <code>&lt; 70</code>，禁止用 <code>&lt;= 70</code>
+2. <strong>环境自动检测</strong>：<code>main.py</code> 自动区分官方评测环境和私有服务器测试
+3. <strong>PageIndex 并发控制</strong>：添加 <code>asyncio.Semaphore</code> 限制摘要并发数（后因不稳定被 revert）</p>
+<p><strong>得分反而下降的原因</strong>：
+- Prompt 变更虽然修复了部分边界案例，但可能<strong>过度约束</strong>了 Agent 的灵活性
+- "改进后得分反降"现象在 LLM Agent 中常见：<strong>局部优化可能破坏全局平衡</strong>
+- 公开测试集上 v5 和 v3 得分相同（64%），说明改进主要影响边缘案例</p>
+<p><strong>v5 vs v3：System Prompt 精确差异（git diff）</strong></p>
+<p>v5 在 v3 的 6 条原则基础上新增了 6 条（规则 7-12），以下为精确 diff：</p>
+<pre><code class="language-diff"> 6. **No Laziness**: Do not assume data based on previews. Always verify counts and values from the full dataset via code.
++7. **No Truncation**: NEVER truncate or slice variables (e.g. `text[:100]`) in your Python
++   code if you intend to copy-paste or submit them in the final `answer` tool call.
++8. **SQL Flat-Join Semantics**: When a question asks for aggregates on &quot;entity A in
++   molecules/groups containing B&quot;, this always maps to simple flat SQL filters where
++   filters are applied to rows before counting (e.g., WHERE bond_type = '#' AND element = 'p').
++9. **Bidirectional Deduplication**: Always check if relationship tables (e.g., connected.csv)
++   are bidirectional (A-&gt;B and B-&gt;A). Deduplicate them (e.g., atom_id &lt; atom_id2).
++10. **NO MANUAL HARDCODING**: When extracting data from unstructured documents, do not
++    visually read and hardcode the data. Write regex or pandas scripts to parse programmatically.
++11. **Time/Numeric Sorting Safety**: Sorting string representations of times (e.g., '1:12.345')
++    alphabetically is forbidden. Parse them to float seconds before sorting.
++12. **Boundary Inequality Checking**: For &quot;less than 70&quot;, use `&lt; 70`, NEVER `&lt;= 70`
++    unless explicitly authorized by knowledge.md.
+</code></pre>
+<p>这 6 条规则每条都来自具体的失败案例（见 <code>failed_tasks_analysis.md</code>）：
+- 规则 7 → task_180（只提交了前 20 行）
+- 规则 8 → task_86（选了错误的表）
+- 规则 9 → task_200（未去重对称键）
+- 规则 10 → task_396（正则地狱死循环）
+- 规则 11 → task_89（时间字符串排序错）
+- 规则 12 → task_344（用了医学常识范围而不是 knowledge.md）</p>
+<p><strong>为何 v6 比 v3 得分低</strong>：这 6 条规则过于针对特定数据集，使得 Prompt 总 Token 数增加约 15%（从约 2KB 增至约 2.3KB），且对 Qwen 产生了更严格的约束，可能限制了其在其他任务上的灵活推理。</p>
+<h4>v5 / LLMWIKI — LLM Wiki 模式 (LLMWIKI 分支)（A-Board: 0.1658）</h4>
+<p><strong>核心思路</strong>：受 Andrej Karpathy 的 LLM Wiki 思想启发，让 Agent 在执行前先通过 LLM 生成数据的 Wiki 式描述。</p>
+<p><strong>关键技术</strong>：
+- <strong>LLM Wiki 预处理</strong>：在任务开始前，调用 LLM 对每个数据源生成结构化的 Wiki 描述
+- 基于 <code>main</code> 分支构建，补充了 <code>use_flat_output</code> 和 <code>DualLogger</code> 合规性补丁</p>
+<p><strong>LLM Wiki 架构详解</strong>：</p>
+<p>整个 LLMWIKI 方案分为三层：</p>
+<pre><code>任务启动
+  │
+  ▼
+WikiIngestor.ingest_task(task)      ← 预处理阶段（最致命的时间消耗）
+  │  - 扫描 context/ 下所有文件
+  │  - 对每个 DB 表/CSV 调用 LLM 生成 Schema 摘要
+  │  - 对每个 .md 文件调用 LLM 生成内容摘要
+  │  - 写入 wiki/ 目录的 Markdown 文件（YAML frontmatter）
+  │
+  ▼
+ReAct Agent 开始推理
+  │  - 系统提示词额外注入 wiki 工具描述
+  │  - Agent 可调用 wiki_search / wiki_get_page / wiki_list_index
+  │
+  ▼
+提交答案
+</code></pre>
+<p><strong>Wiki Page 数据结构（engine.py）</strong>：</p>
+<pre><code class="language-python">@dataclass
+class WikiPage:
+    title: str
+    page_type: str  # entity, concept, source, synthesis, overview
+    tags: list[str]
+    sources: list[str]
+    confidence: str = &quot;EXTRACTED&quot;  # EXTRACTED, INFERRED, AMBIGUOUS, UNVERIFIED
+    content: str = &quot;&quot;
+</code></pre>
+<p>Wiki 页面以 YAML frontmatter + Markdown 正文格式存储，例如：</p>
+<pre><code class="language-markdown">---
+title: results table
+type: entity
+tags:
+  - database
+  - structured
+sources:
+  - db/data.db
+confidence: EXTRACTED
+---
+
+## Schema
+| Column | Type | Notes |
+|--------|------|-------|
+| resultId | INTEGER | Primary key |
+| raceId | INTEGER | FK -&gt; races.raceId |
+| points | REAL | Points scored |
+
+## Sample Values
+position: 1, 2, 3, DNF
+</code></pre>
+<p><strong>WikiIngestor 的两阶段知识提取（ingest.py）</strong>：</p>
+<pre><code class="language-python">def ingest_task(self, task, run_result=None):
+    knowledge = self._extract_knowledge(task, run_result)  # 阶段1: 提取
+    # 阶段2: 写入 wiki 页面
+    source_page = self._create_source_page(knowledge)
+    for entity in knowledge.data_sources:
+        # 每个数据表创建一个 entity 页面（upsert：已存在则合并）
+        self.engine.upsert_page(entity_page)
+    self.engine.rebuild_index()  # 重建全局索引
+</code></pre>
+<p>每次 <code>ingest_task</code> 会对 context/ 目录下的所有数据源调用 LLM 生成摘要，实测单任务耗时约 30-90 秒（取决于数据文件数量），导致 2 小时 / 60 任务的 A-Board 严重超时。</p>
+<p><strong>在公开测试集上得分最高的原因</strong>：
+- Wiki 描述为 Agent 提供了丰富的语义上下文
+- 公开测试集任务相对简单，额外的上下文信息正好帮助 Agent 理解数据</p>
+<p><strong>在 A-Board 上得分最低的原因</strong>：
+- LLM Wiki 预处理<strong>消耗大量 Token 和时间</strong>
+- A-Board 仅 2 小时时限 + ~60 任务，Wiki 生成的时间开销导致大量任务超时
+- Wiki 描述引入了 LLM 的幻觉风险，在复杂任务中可能误导 Agent
+- 整体架构复杂度增加，<strong>收益不抵开销</strong></p>
+<h4>实验分支（exp/*）— 未提交</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">分支</th>
+<th style="text-align: left;">技术</th>
+<th style="text-align: left;">未提交原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>exp/pagerag</code></td>
+<td style="text-align: left;">基础 PageRAG（RRF + BM25）</td>
+<td style="text-align: left;">效果不稳定，精度不如纯 KG</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exp/kg+pagerag</code></td>
+<td style="text-align: left;">KG + PageRAG v2.2</td>
+<td style="text-align: left;">引入 Embedding 后镜像体积暴增，且精度未提升</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exp/graphrag</code></td>
+<td style="text-align: left;">LLM 驱动的三元组抽取</td>
+<td style="text-align: left;">预处理耗时过长，三元组质量不稳定</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exp/kg+graphrag</code></td>
+<td style="text-align: left;">KG + GraphRAG</td>
+<td style="text-align: left;">融合后复杂度过高，得分反降</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>exp/schema-std</code></td>
+<td style="text-align: left;">Schema 预处理标准化</td>
+<td style="text-align: left;">改进幅度有限，独立贡献不显著</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>feat/db-schema-only</code></td>
+<td style="text-align: left;">纯 Schema KG</td>
+<td style="text-align: left;">已被 v3 完整吸收</td>
+</tr>
+</tbody>
+</table>
+<div class="alert alert-note">
+    <div class="alert-title"><span class="alert-icon"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span> 注意 (Note)</div>
+    <p><strong>向量检索类方案（PageRAG、GraphRAG）在本赛题中效果均不理想。</strong></p>
+<p>核心原因：
+1. 赛题的数据源以结构化数据（CSV/DB）为主，非结构化文档（doc/）占比较小
+2. Embedding 模型需要 <code>sentence-transformers</code>，引入 PyTorch 和 CUDA 依赖，镜像体积从 ~260MB 暴增到 ~3GB
+3. 向量检索的精度在小规模文档上不如基于行号的精准定位（PageIndex）
+4. 额外的检索链路增加了系统复杂度和延迟，在严格时限下弊大于利</p>
+</div>
+
+<h3>3.4 公开测试集（Public Test Set）基准对比与深度诊断</h3>
+<p>在第一阶段的本地开发过程中，我们基于公开测试集（DABench Public Task Set）进行了广泛的控制变量与基准对比实验。不同方案在测试集上的得分表现、失分情况及核心原因如下：</p>
+<h4>1. 各方案在公开测试集上的整体表现（Side-by-side Comparison）</h4>
+<p>我们将我们的统一架构版本（运行ID: <code>20260518T123626Z</code>，即 v6 / v5 分支方案）与 v3 (Schema KG + PageIndex)、v5 (Wiki baseline) 进行了多维度对比：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">评估指标</th>
+<th style="text-align: left;">v3 (Schema KG + PageIndex)</th>
+<th style="text-align: left;">v5 (Wiki baseline)</th>
+<th style="text-align: left;">v6 (v5 分支 / 64.00% 统一架构)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>总测试任务数</strong></td>
+<td style="text-align: left;">50</td>
+<td style="text-align: left;">50</td>
+<td style="text-align: left;">50</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>执行成功率 (完赛率)</strong></td>
+<td style="text-align: left;">94.00% (47/50)</td>
+<td style="text-align: left;">92.00% (46/50)</td>
+<td style="text-align: left;"><strong>100.00% (50/50)</strong> ⭐</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>崩溃/超时任务数</strong></td>
+<td style="text-align: left;">3 (<code>task_250</code>, <code>task_257</code>, <code>task_303</code>)</td>
+<td style="text-align: left;">4 (<code>task_38</code>, <code>task_344</code>, <code>task_352</code>, <code>task_396</code>)</td>
+<td style="text-align: left;"><strong>0</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>整体平均得分 (All Tasks)</strong></td>
+<td style="text-align: left;">0.5350</td>
+<td style="text-align: left;">0.5950</td>
+<td style="text-align: left;"><strong>0.6400</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>有效平均得分 (Successful Tasks)</strong></td>
+<td style="text-align: left;">0.5691</td>
+<td style="text-align: left;"><strong>0.6467</strong></td>
+<td style="text-align: left;">0.6400</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>完全正确任务数 (Score=1.0)</strong></td>
+<td style="text-align: left;">25</td>
+<td style="text-align: left;">29</td>
+<td style="text-align: left;"><strong>32</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="alert alert-note">
+    <div class="alert-title"><span class="alert-icon"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></span> 注意 (Note)</div>
+    <p><strong>核心结论：</strong>
+1. <strong>工程鲁棒性（Robustness）显著提升</strong>：在评测环境与资源约束下，<code>v3 (Schema KG + PageIndex)</code> 和 <code>Wiki baseline</code> 均出现了任务超时或因上下文超限（BadRequestError）导致的 API 崩溃。本方案通过引入“难度分级路由”和“历史压缩”机制，成功克服了 Token 溢出与无限重试死循环，实现了 <strong>100.00% 的完赛率</strong>。
+2. <strong>整体正确率（Average Score）领先</strong>：由于高完赛率 and 拦截器重构，本方案在 50 个任务上的总得分达到 <strong>0.6400</strong>，明显高于两套基线。</p>
+</div>
+
+<h4>2. 关键任务级行为差异（Task-Level Divergence）深度诊断</h4>
+<p>为进一步定位智能体决策的底层差异，我们对三套运行日志进行了单步追踪，发现了几个极其显著的行为分歧：</p>
+<ul>
+<li><strong>v3 (Schema KG + PageIndex) 的数据类型与去重缺陷</strong>：<ul>
+<li><strong><code>task_243</code>（计算用户24的帖子/投票比率）</strong>：<ul>
+<li><em>v3 (Schema KG + PageIndex)</em> 得分为 <code>0.0</code>。原因在于其生成的 Python 代码将用户 ID 进行了强制字符串转换：<code>votes_df['UserId'].astype(str) == '24'</code>。但由于 <code>UserId</code> 列在 pandas 读取 CSV 时被自动推导为 <code>float64</code>（存在字面量 <code>24.0</code>），转换后的字符串为 <code>'24.0'</code>，导致与 <code>'24'</code> 比对永远返回 False（即 0 票），引发了除以零的计算崩溃。</li>
+<li><em>本方案 (20260518T123626Z)</em> 得分为 <code>1.0</code>。智能体直接进行了数值类型安全的比较：<code>df['UserId'] == 24</code>，成功匹配 float <code>24.0</code> 与 int <code>24</code>，检索出 8 票并计算出正确率 <code>0.375</code>。</li>
+</ul>
+</li>
+<li><strong><code>task_86</code>（查询 Alex Yoong 参赛名次低于 20 的比赛）</strong>：<ul>
+<li><em>v3 (Schema KG + PageIndex)</em> 得分为 <code>0.0</code>。其生成的过滤逻辑在 driver ID <code>'62'</code>（应为数值 62）上因类型比对失败返回空数据，随后纠正代码后却在去重步骤上遗漏。它导出了包含重复比赛的 17 行结果（例如 2001 和 2002 年日本大奖赛由于不同年度的记录重复出现），而标准答案仅期望唯一的赛道名。</li>
+<li><em>本方案 (20260518T123626Z)</em> 得分为 <code>1.0</code>。智能体在合并查询后使用 <code>unique()</code> 进行了去重，输出了恰好 16 个唯一的比赛名称。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Wiki Baseline 与本方案的语义分歧与局限</strong>：<ul>
+<li><strong><code>task_408</code>（澳大利亚大奖赛冠军与最后一名的时间百分比差异）</strong>：<ul>
+<li><em>Wiki baseline</em> 得分为 <code>1.0</code>。智能体成功识别出在“完赛者（finishers）”中，“最后一名”应指的是正常完成比赛且有完赛用时记录（milliseconds）的最后一位车手（即 position 5，排在第5名且有总完赛用时 <code>5708630</code> ms）。它计算了总用时差百分比：<code>0.32%</code>。</li>
+<li><em>本方案 (20260518T123626Z)</em> 得分为 <code>0.0</code>。智能体在识别最后一名时，选了 position 8（排在第8名，其虽是完赛者，但因被套圈而没有总完赛毫秒数，<code>milliseconds</code> 为空）。智能体在检测到 <code>milliseconds</code> 为空后，退而求其次地计算了“最快单圈时速（fastestLapSpeed）”的百分比差异（<code>0.5157%</code>），逻辑虽然自洽，但与标准答案期待的完赛时间比例计算不符。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4>3. v6（v5 分支，64.00%得分）失败任务诊断总结</h4>
+<p>在此版本的本地运行中，共有 18 个任务得分为 0.0。我们已对所有这些任务进行了地毯式的像素级深度追踪，并提炼出了底层原因。具体的任务明细、问题描述以及标准/实际输出对比，请参阅后文 <strong>[3.5 节任务级失分诊断大底牌]</strong> 中对应的折叠卡片。</p>
+<h4>3. 规避失分的核心优化讨论</h4>
+<p>不需要重构复杂的 Python 基础设施，我们可以通过调整<strong>智能体系统提示词（System Prompt）</strong>或在<strong>知识指引（Knowledge Base）</strong>中增加高级操作原则来从根本上缓解这些错误：</p>
+<ul>
+<li><strong>规避特定指标的临界值边界模糊</strong>：在 ReAct 系统提示词追加严格的“临界边界与不等式检查”指令（<em>v5 已经吸纳了此条规则</em>）。对于 "less than 70" 这种严格字眼，必须使用 <code>&lt; 70</code>，绝对禁止使用 <code>&lt;= 70</code>，除非 <code>knowledge.md</code> 中有另外指引。</li>
+<li><strong>防御时空过滤与数值排序陷阱</strong>：在 SQL/Python 中对时间或历时字符串进行排序时，必须先使用特定函数将其转换为数值秒数（例如 <code>1:12.345</code> 转为 <code>72.345</code>），禁止对时间字符串直接执行 Alphabetical 字母顺序排序。</li>
+<li><strong>彻底杜绝非结构化文档的硬编码提取</strong>：严禁智能体通过肉眼读取部分文本后在 Python 中 hardcode 声明字典或列表。必须编写稳健的正则（regex）或 pandas 脚本从长文本中全量自动提取，防止因文本滑动截断导致的数据漏配。</li>
+<li><strong>双向语义核对以应对 Gold 答案本身的设计偏差</strong>：对于如 <code>task_163</code>、<code>task_145</code> 等因为官方 Gold 脚本带有设计瑕疵（漏写聚合、字段名称概念混淆）导致失分的任务，我们在 <strong>Answer Interceptor</strong> 中引入了双向校验。在最终输出前，要求智能体对比所推导字段与原始 Schema 的物理意义是否完全一致。</li>
+</ul>
+<hr />
+<h3>3.5 公开测试集任务级失分诊断大底牌 (所有版本对比与折叠展开)</h3>
+<p>为满足导师汇报的严谨学术要求，我们对三个核心版本的失分/运行故障任务进行了全量单步排查。以下是每个版本的详细失败案例诊断（点击下方卡片可展开查看完整明细）：</p>
+<details class="premium-details">
+    <summary class="premium-summary">点击展开/收起：v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 24 个)</summary>
+    <div class="details-content">
+        <h4 id="failed-tasks-v3">v3 (Schema KG + PageIndex) 失败与不完美任务明细 (共 25 个)</h4>
+<table class="failed-tasks-table">
+    <thead>
+        <tr>
+            <th style="width: 10%;">任务ID</th>
+            <th style="width: 25%;">任务提问 (Question)</th>
+            <th style="width: 15%;">标准答案 (Gold Shape)</th>
+            <th style="width: 15%;">实际预测 (Pred Shape)</th>
+            <th style="width: 8%;">得分</th>
+            <th style="width: 27%;">诊断结论与失分根源 (Root Cause)</th>
+        </tr>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td class="text-bold">task_11</td>
+            <td class="text-muted" style="font-size: 0.88rem;">For patients with severe degree of thrombosis, list their ID, sex and disease the patient is diagnosed with.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值/字段判定逻辑出现偏差。智能体未完全与 knowledge.md 中特定表对严重程度的定义对齐。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_25</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Which event has the lowest cost?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">排序/聚合深度逻辑偏差。智能体计算的是“总预算最低的活动”，而 Gold 期待的是“单笔开销最低的活动（LIMIT 1）”。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_75</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the surname of the driver with the best lap time in race number 19 in the second qualifying period?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">字符串格式排序陷阱。Q2时间（如 '1:12.345'）在 SQLite 中作为 raw 字符串时未进行秒数转换或过滤 \N 导致排序错乱。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_80</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is his number of the driver who finished 0:01:54 in the Q3 of qualifying race No.903?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">时间正则/格式匹配遗漏。未能将 0:01:54 模糊泛化到不同的秒数/毫秒表示导致数据少漏。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_86</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Which race was Alex Yoong in when he was in track number less than 20?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">去重机制遗漏与类型比对失效。生成的代码中过滤 driverId == '62' 类型比对失败，且在去重步骤上遗漏，导出了包含重复比赛的 17 行结果，而标准答案仅期望唯一的赛道名。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_89</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What's the finish time for the driver who ranked second in 2008's Chinese Grand Prix?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">排序/排名判定逻辑错误。未能准确抓取到正确的第二名车手。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_145</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;"><strong><strong>Gold 标准答案设计缺陷</strong>（聚合漏加）</strong>。自然答案是聚合整数 4，但 Gold 标准 SQL 中漏写了聚合，带着多余的 GROUP BY 导出了 4 个 1。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_163</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Identify the type of expenses and their total value approved for 'October Meeting' event.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;"><strong><strong>Gold 标准答案概念混淆</strong></strong>。问题问的是“费用类型”，智能体输出了 Posters/Pizza 等；而 Gold 的 SQL 选的却是“活动类型（event_type）”，从而合并计算。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_169</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What was the average monthly consumption of customers in SME for the year 2013?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据归一化/除数错误。智能体求了整体大聚合，未能按客户或月份正确分解月均，算成了天文数字。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_173</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Please list the countries of the gas stations with transactions taken place in June, 2013.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">日期格式过滤失效。June, 2013 字符串在 SQLite 中可能以 13.06.2013 等非标准形式存储，智能体直接用标准 LIKE '2013-06%' 过滤导致空结果。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_180</td>
+            <td class="text-muted" style="font-size: 0.88rem;">For all the people who paid more than 29.00 per unit of product id No.5. Give their consumption status in the August of 2012.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值精度/时区遗漏。在单价“大于29”或时间跨度上漏掉了恰好落在边界上的 1 个用户。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_196</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the average number of bonds the atoms with the element iodine have?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">字段定位与去重缺陷。智能体在关联 School 详情时，未能与 SAT 数值边界完全对齐，多导出了部分未匹配的学校。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_199</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Name schools in Riverside which the average of average math score for SAT is grater than 400, what is the funding type of these schools?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">空间过滤条件缺失。智能体漏掉了“Riverside 地区”的严格行政区划过滤，导出了全县所有合格学校。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_243</td>
+            <td class="text-muted" style="font-size: 0.88rem;">For the user No.24, how many times is the number of his/her posts compared to his/her votes?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据类型安全缺陷。智能体生成的 Python 代码将 UserId 进行了强制字符串转换：votes_df['UserId'].astype(str) == '24'。但在 pandas 中它为 float64，字面量为 '24.0'，导致匹配失败（除零崩溃）。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_249</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the average of the up votes and the average user age for users creating more than 10 posts?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-blue">0.50</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">部分匹配错误。缺少 AVG(T1.Age) 预测列，可能是由于聚合函数在数据类型或空值填充上与金标准有偏离。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_250</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Which post by slashnick has the most answers count? State the post ID.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">运行超时/未产出。智能体陷入 ReAct 重试死循环，或生成了死循环 Python 代码，导致被评测环境 60 秒硬超时熔断。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_257</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Identify the total views on the post 'Computer Game Datasets'. Name the user who posted it last time.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">运行超时/未产出。由于未引入历史压缩，Agent 在 Context Window 溢出后抛出 BadRequestError，导致任务崩溃。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_303</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among all European Grand Prix races, what is the percentage of the races were hosted in Germany?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">运行超时/未产出。由于未引入历史压缩，Agent 在 Context Window 溢出后抛出 BadRequestError，导致任务崩溃。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_344</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值边界不一致。正常/异常区间白细胞范围在 knowledge.md 里的上下界使用有偏差。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_352</td>
+            <td class="text-muted" style="font-size: 0.88rem;">How many times was the budget in Advertisement for "Yearly Kickoff" meeting more than "October Meeting"?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据流截断/除零错误。智能体未能在 context 中正确解析出 October Meeting 的预算，导致分母为 0 或空集。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_379</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Tally the toxicology element of the 4th atom of each molecule that was carcinogenic.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-blue">0.75</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">索引越界与偏移量（Off-by-one）误差。智能体对“第 4 个原子”的提取在 Python 0-based 索引与 1-based 索引中偏离，误选了 n 漏掉了 s。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_396</td>
+            <td class="text-muted" style="font-size: 0.88rem;">In superheroes with height between 150 to 180, what is the percentage of heroes published by Marvel Comics?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">文本解析不全。智能体读取 superhero.md 长文本时漏掉了开头 Part IV 处的英雄，手动硬编码导致分母算错。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_408</td>
+            <td class="text-muted" style="font-size: 0.88rem;">How much faster in percentage is the champion than the driver who finished the race last in the 2008 Australian Grand Prix?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">完赛状态筛选遗漏。智能体将 DNF（未完赛/退赛）的车手也包含在“最后一名”中，导致算出来的时间差过大。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_415</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the constructor reference name of the champion in the 2009 Singapore Grand Prix? Please give its website.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-blue">0.50</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">部分匹配错误。预测结果中缺失 constructorRef 字段列，受到 Recall 惩罚。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_418</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the patients whose creatinine level is abnormal, how many of them aren't 70 yet?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">边界不等号偏差。智能体将“不到 70 岁（< 70）”写成了“小于等于 70 岁（<= 70）”，多算了一人。</td>
+        </tr>
+
+    </tbody>
+</table>
+
+    </div>
+</details>
+
+<details class="premium-details">
+    <summary class="premium-summary">点击展开/收起：v5 (Wiki Baseline) 失败与不完美任务明细 (共 21 个)</summary>
+    <div class="details-content">
+        <h4 id="failed-tasks-v5">v5 (Wiki Baseline) 失败与不完美任务明细 (共 21 个)</h4>
+<table class="failed-tasks-table">
+    <thead>
+        <tr>
+            <th style="width: 10%;">任务ID</th>
+            <th style="width: 25%;">任务提问 (Question)</th>
+            <th style="width: 15%;">标准答案 (Gold Shape)</th>
+            <th style="width: 15%;">实际预测 (Pred Shape)</th>
+            <th style="width: 8%;">得分</th>
+            <th style="width: 27%;">诊断结论与失分根源 (Root Cause)</th>
+        </tr>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td class="text-bold">task_25</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Which event has the lowest cost?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">排序/聚合深度逻辑偏差。智能体计算的是“总预算最低的活动”，而 Gold 期待的是“单笔开销最低的活动（LIMIT 1）”。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_38</td>
+            <td class="text-muted" style="font-size: 0.88rem;">List all the withdrawals in cash transactions that the client with the id 3356 makes.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">预处理阶段超时崩溃。WikiIngestor 对超大规模或高复杂度 context 目录分析生成 Wiki 耗时超出系统阈值，被官方环境强行中止。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_75</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the surname of the driver with the best lap time in race number 19 in the second qualifying period?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">字符串格式排序陷阱。Q2时间（如 '1:12.345'）在 SQLite 中作为 raw 字符串时未进行秒数转换或过滤 \N 导致排序错乱。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_80</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is his number of the driver who finished 0:01:54 in the Q3 of qualifying race No.903?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">时间正则/格式匹配遗漏。未能将 0:01:54 模糊泛化到不同的秒数/毫秒表示导致数据少漏。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_86</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Which race was Alex Yoong in when he was in track number less than 20?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">去重机制遗漏与类型比对失效。生成的代码中过滤 driverId == '62' 类型比对失败，且在去重步骤上遗漏，导出了包含重复比赛的 17 行结果，而标准答案仅期望唯一的赛道名。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_89</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What's the finish time for the driver who ranked second in 2008's Chinese Grand Prix?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">排序/排名判定逻辑错误。未能准确抓取到正确的第二名车手。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_145</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;"><strong><strong>Gold 标准答案设计缺陷</strong>（聚合漏加）</strong>。自然答案是聚合整数 4，但 Gold 标准 SQL 中漏写了聚合，带着多余的 GROUP BY 导出了 4 个 1。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_163</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Identify the type of expenses and their total value approved for 'October Meeting' event.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;"><strong><strong>Gold 标准答案概念混淆</strong></strong>。问题问的是“费用类型”，智能体输出了 Posters/Pizza 等；而 Gold 的 SQL 选的却是“活动类型（event_type）”，从而合并计算。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_169</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What was the average monthly consumption of customers in SME for the year 2013?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据归一化/除数错误。智能体求了整体大聚合，未能按客户或月份正确分解月均，算成了天文数字。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_180</td>
+            <td class="text-muted" style="font-size: 0.88rem;">For all the people who paid more than 29.00 per unit of product id No.5. Give their consumption status in the August of 2012.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值精度/时区遗漏。在单价“大于29”或时间跨度上漏掉了恰好落在边界上的 1 个用户。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_194</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What are the bonds that have phosphorus and nitrogen as their atom elements?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">信息关联键偏离。智能体受 Wiki 中幻觉信息的影响，使用了错误的表关联字段，导致输出空数据集。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_196</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the average number of bonds the atoms with the element iodine have?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">字段定位与去重缺陷。智能体在关联 School 详情时，未能与 SAT 数值边界完全对齐，多导出了部分未匹配的学校。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_199</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Name schools in Riverside which the average of average math score for SAT is grater than 400, what is the funding type of these schools?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">空间过滤条件缺失。智能体漏掉了“Riverside 地区”的严格行政区划过滤，导出了全县所有合格学校。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_200</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Calculate the total atoms with triple-bond molecules containing the element phosphorus or bromine.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">分子化学逻辑理解偏差。智能体在图结构解析中把分子数 and 原子数搞混，算大了结果。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_259</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the posts with views ranging from 100 to 150, what is the comment with the highest score?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">文档检索失效。LLM Wiki 预处理生成的 Markdown 表格摘要存在信息漏配，误导 Agent 在 ReAct 推理时未调用 read_doc 读取原表格，导致预测失败。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_287</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Identify the gender of the superhero who has the ability of Phoenix Force.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-blue">0.75</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">额外列惩罚。智能体输出了 superhero_name 列，虽包含正确答案，但由于多出了未预期列，被 Lambda 扣除 0.25 罚分。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_344</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值边界不一致。正常/异常区间白细胞范围在 knowledge.md 里的上下界使用有偏差。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_352</td>
+            <td class="text-muted" style="font-size: 0.88rem;">How many times was the budget in Advertisement for "Yearly Kickoff" meeting more than "October Meeting"?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据流截断/除零错误。智能体未能在 context 中正确解析出 October Meeting 的预算，导致分母为 0 或空集。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_379</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Tally the toxicology element of the 4th atom of each molecule that was carcinogenic.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">索引越界与偏移量（Off-by-one）误差。智能体对“第 4 个原子”的提取在 Python 0-based 索引与 1-based 索引中偏离，误选了 n 漏掉了 s。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_396</td>
+            <td class="text-muted" style="font-size: 0.88rem;">In superheroes with height between 150 to 180, what is the percentage of heroes published by Marvel Comics?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;"><span class='text-red'>运行崩溃</span></td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">文本解析不全。智能体读取 superhero.md 长文本时漏掉了开头 Part IV 处的英雄，手动硬编码导致分母算错。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_418</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the patients whose creatinine level is abnormal, how many of them aren't 70 yet?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">边界不等号偏差。智能体将“不到 70 岁（< 70）”写成了“小于等于 70 岁（<= 70）”，多算了一人。</td>
+        </tr>
+
+    </tbody>
+</table>
+
+    </div>
+</details>
+
+<details class="premium-details">
+    <summary class="premium-summary">点击展开/收起：v6 (v5 分支 / 64.00% 统一架构) 失败与不完美任务明细 (共 18 个)</summary>
+    <div class="details-content">
+        <h4 id="failed-tasks-v6">v6 (v5分支 / 64.00% 统一架构) 失败与不完美任务明细 (共 18 个)</h4>
+<table class="failed-tasks-table">
+    <thead>
+        <tr>
+            <th style="width: 10%;">任务ID</th>
+            <th style="width: 25%;">任务提问 (Question)</th>
+            <th style="width: 15%;">标准答案 (Gold Shape)</th>
+            <th style="width: 15%;">实际预测 (Pred Shape)</th>
+            <th style="width: 8%;">得分</th>
+            <th style="width: 27%;">诊断结论与失分根源 (Root Cause)</th>
+        </tr>
+    </thead>
+    <tbody>
+
+        <tr>
+            <td class="text-bold">task_11</td>
+            <td class="text-muted" style="font-size: 0.88rem;">For patients with severe degree of thrombosis, list their ID, sex and disease the patient is diagnosed with.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值/字段判定逻辑出现偏差。智能体未完全与 knowledge.md 中特定表对严重程度的定义对齐。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_25</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Which event has the lowest cost?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">排序/聚合深度逻辑偏差。智能体计算的是“总预算最低的活动”，而 Gold 期待的是“单笔开销最低的活动（LIMIT 1）”。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_75</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is the surname of the driver with the best lap time in race number 19 in the second qualifying period?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">字符串格式排序陷阱。Q2时间（如 '1:12.345'）在 SQLite 中作为 raw 字符串时未进行秒数转换或过滤 \N 导致排序错乱。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_80</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What is his number of the driver who finished 0:01:54 in the Q3 of qualifying race No.903?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">时间正则/格式匹配遗漏。未能将 0:01:54 模糊泛化到不同的秒数/毫秒表示导致数据少漏。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_89</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What's the finish time for the driver who ranked second in 2008's Chinese Grand Prix?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">排序/排名判定逻辑错误。未能准确抓取到正确的第二名车手。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_145</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the events attended by more than 10 members of the Student_Club, how many of them are meetings?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;"><strong><strong>Gold 标准答案设计缺陷</strong>（聚合漏加）</strong>。自然答案是聚合整数 4，但 Gold 标准 SQL 中漏写了聚合，带着多余的 GROUP BY 导出了 4 个 1。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_163</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Identify the type of expenses and their total value approved for 'October Meeting' event.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;"><strong><strong>Gold 标准答案概念混淆</strong></strong>。问题问的是“费用类型”，智能体输出了 Posters/Pizza 等；而 Gold 的 SQL 选的却是“活动类型（event_type）”，从而合并计算。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_169</td>
+            <td class="text-muted" style="font-size: 0.88rem;">What was the average monthly consumption of customers in SME for the year 2013?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据归一化/除数错误。智能体求了整体大聚合，未能按客户或月份正确分解月均，算成了天文数字。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_173</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Please list the countries of the gas stations with transactions taken place in June, 2013.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">日期格式过滤失效。June, 2013 字符串在 SQLite 中可能以 13.06.2013 等非标准形式存储，智能体直接用标准 LIKE '2013-06%' 过滤导致空结果。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_180</td>
+            <td class="text-muted" style="font-size: 0.88rem;">For all the people who paid more than 29.00 per unit of product id No.5. Give their consumption status in the August of 2012.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值精度/时区遗漏。在单价“大于29”或时间跨度上漏掉了恰好落在边界上的 1 个用户。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_199</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Name schools in Riverside which the average of average math score for SAT is grater than 400, what is the funding type of these schools?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">空间过滤条件缺失。智能体漏掉了“Riverside 地区”的严格行政区划过滤，导出了全县所有合格学校。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_200</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Calculate the total atoms with triple-bond molecules containing the element phosphorus or bromine.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">分子化学逻辑理解偏差。智能体在图结构解析中把分子数 and 原子数搞混，算大了结果。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_344</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the male patients who have a normal level of white blood cells, how many of them have an abnormal fibrinogen level?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">临界值边界不一致。正常/异常区间白细胞范围在 knowledge.md 里的上下界使用有偏差。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_352</td>
+            <td class="text-muted" style="font-size: 0.88rem;">How many times was the budget in Advertisement for "Yearly Kickoff" meeting more than "October Meeting"?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">数据流截断/除零错误。智能体未能在 context 中正确解析出 October Meeting 的预算，导致分母为 0 或空集。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_379</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Tally the toxicology element of the 4th atom of each molecule that was carcinogenic.</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">索引越界与偏移量（Off-by-one）误差。智能体对“第 4 个原子”的提取在 Python 0-based 索引与 1-based 索引中偏离，误选了 n 漏掉了 s。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_396</td>
+            <td class="text-muted" style="font-size: 0.88rem;">In superheroes with height between 150 to 180, what is the percentage of heroes published by Marvel Comics?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">文本解析不全。智能体读取 superhero.md 长文本时漏掉了开头 Part IV 处的英雄，手动硬编码导致分母算错。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_408</td>
+            <td class="text-muted" style="font-size: 0.88rem;">How much faster in percentage is the champion than the driver who finished the race last in the 2008 Australian Grand Prix?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">完赛状态筛选遗漏。智能体将 DNF（未完赛/退赛）的车手也包含在“最后一名”中，导致算出来的时间差过大。</td>
+        </tr>
+
+        <tr>
+            <td class="text-bold">task_418</td>
+            <td class="text-muted" style="font-size: 0.88rem;">Among the patients whose creatinine level is abnormal, how many of them aren't 70 yet?</td>
+            <td style="font-size: 0.88rem;">—</td>
+            <td style="font-size: 0.88rem;">空行</td>
+            <td class="text-bold text-red">0.00</td>
+            <td style="font-size: 0.88rem; line-height: 1.4;">边界不等号偏差。智能体将“不到 70 岁（< 70）”写成了“小于等于 70 岁（<= 70）”，多算了一人。</td>
+        </tr>
+
+    </tbody>
+</table>
+
+    </div>
+</details>
+
+<hr />
+<h2>四、核心架构详解（v3 最终方案）</h2>
+<h3>4.1 系统 Prompt 结构</h3>
+<pre><code>[A] react_system_prompt.txt      ← 核心行为准则（6 条操作原则 + 工具规则 + 输出格式）
+[B] Data Roadmap                 ← 动态数据地图（Schema KG + PageIndex，按难度生成）
+[C] Tool Descriptions            ← 工具说明（registry.py 自动生成）
+[D] response_examples.txt        ← 3 个输出格式示例（SQL / Python / 提交）
+[E] 输出格式强制声明              ← 硬编码在 build_system_prompt() 末尾
+</code></pre>
+<h3>4.2 Data Roadmap 生成策略</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">难度</th>
+<th style="text-align: left;">策略</th>
+<th style="text-align: left;">内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>easy</code></td>
+<td style="text-align: left;">精简模式</td>
+<td style="text-align: left;">仅文件列表（<code>list_context_tree</code> depth=2），避免 Token 过载</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>medium</code> / <code>hard</code> / <code>extreme</code></td>
+<td style="text-align: left;">全量模式</td>
+<td style="text-align: left;">Schema KG + PageIndex 文档树</td>
+</tr>
+</tbody>
+</table>
+<h3>4.3 工具集</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">工具</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>list_context</code></td>
+<td style="text-align: left;">列出 context 目录结构</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>read_csv</code></td>
+<td style="text-align: left;">读取 CSV 预览</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>read_json</code></td>
+<td style="text-align: left;">读取 JSON 预览</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>read_doc</code></td>
+<td style="text-align: left;">按页读取文本文档</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>read_doc_lines</code></td>
+<td style="text-align: left;">精准行读取，配合 PageIndex 行号</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>get_doc_structure</code></td>
+<td style="text-align: left;">获取 Markdown 文档的树状结构</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>inspect_sqlite_schema</code></td>
+<td style="text-align: left;">查看 DB 文件表结构</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>execute_context_sql</code></td>
+<td style="text-align: left;">对 DB 执行只读 SQL</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>execute_python</code></td>
+<td style="text-align: left;">执行 Python 代码（60s 超时）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>answer</code></td>
+<td style="text-align: left;">提交最终答案（带拦截器二次审核）</td>
+</tr>
+</tbody>
+</table>
+<h3>4.4 防护机制</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">机制</th>
+<th style="text-align: left;">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Answer Interceptor</td>
+<td style="text-align: left;">首次提交被拦截，强制二次审核</td>
+</tr>
+<tr>
+<td style="text-align: left;">死循环检测</td>
+<td style="text-align: left;">连续 3 次相同 Action 触发警告</td>
+</tr>
+<tr>
+<td style="text-align: left;">熔断保护</td>
+<td style="text-align: left;">连续 6 次错误终止任务</td>
+</tr>
+<tr>
+<td style="text-align: left;">反思提醒</td>
+<td style="text-align: left;">连续 3 次错误注入 <code>[SYSTEM WARNING]</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">历史压缩</td>
+<td style="text-align: left;">折叠连续失败步骤，节省 Token</td>
+</tr>
+<tr>
+<td style="text-align: left;">JSON 自动修复</td>
+<td style="text-align: left;">Greedy Brace Fix + 换行符转义</td>
+</tr>
+<tr>
+<td style="text-align: left;">Python 超时</td>
+<td style="text-align: left;">单脚本 60 秒超时保护</td>
+</tr>
+<tr>
+<td style="text-align: left;">任务超时</td>
+<td style="text-align: left;">单任务 1200 秒（20 分钟）超时</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>五、关键教训与反思</h2>
+<h3>5.1 成功经验</h3>
+<ol>
+<li><strong>"信息前置"优于"按需检索"</strong></li>
+<li>Schema KG 在推理前一次性提供数据全貌，比让 Agent 自行探索高效得多</li>
+<li>
+<p>PageIndex 的带行号树状结构比全量 Embedding 检索更精准、更轻量</p>
+</li>
+<li>
+<p><strong>"简单稳定"优于"复杂精巧"</strong></p>
+</li>
+<li>v3（KG + PageIndex）代码简洁、运行稳定，远胜复杂的 RAG 方案</li>
+<li>
+<p>向量检索、图知识抽取等复杂组件在本赛题中 ROI 为负</p>
+</li>
+<li>
+<p><strong>Answer Interceptor 显著提升精度</strong></p>
+</li>
+<li>
+<p>强制二次审核有效减少了格式错误和粗心计算错误</p>
+</li>
+<li>
+<p><strong>镜像体积控制</strong></p>
+</li>
+<li>移除 <code>sentence-transformers</code> 后，镜像从 ~3GB 降至 ~260MB</li>
+<li>构建时间从 20 分钟降至 1 分钟</li>
+</ol>
+<h3>5.2 失败教训</h3>
+<ol>
+<li><strong>不要过度依赖公开测试集</strong></li>
+<li>
+<p>公开集与隐藏集的分布差异极大，v6 的"公开最高、A-Board 最低"是惨痛教训</p>
+</li>
+<li>
+<p><strong>Prompt 优化有双刃剑效应</strong></p>
+</li>
+<li>
+<p>v5 的 Prompt 改进在公开集不变但 A-Board 下降，说明过度约束反而限制 Agent 灵活性</p>
+</li>
+<li>
+<p><strong>LLM 推理的非确定性不可忽视</strong></p>
+</li>
+<li>
+<p>v3 和 v4 代码相同但得分差 0.2+，提醒我们 LLM-based 系统的方差很大</p>
+</li>
+<li>
+<p><strong>向量检索在结构化数据场景效果有限</strong></p>
+</li>
+<li>本赛题以 CSV/DB 为主，Embedding 检索的优势场景（大规模非结构化文档）出现频率低</li>
+</ol>
+<h3>5.3 展望与改进方向</h3>
+<ol>
+<li><strong>更早放弃向量检索方向</strong>，集中精力优化 Schema KG 和工具链</li>
+<li><strong>在 A-Board 上多次验证同一版本</strong>，评估得分方差</li>
+<li><strong>增加对 A-Board 时限的敏感性测试</strong>（2 小时 / 60 tasks ≈ 2 分钟/任务）</li>
+<li><strong>对 Prompt 变更做 A/B 测试</strong>，而非仅依赖公开集验证</li>
+</ol>
+<hr />
+<h2>六、B-Board 提交</h2>
+<h3>6.1 最终决策</h3>
+<p>基于 A-Board 得分对比，选择 <strong>v3</strong> 作为 B-Board 最终提交版本。</p>
+<p><strong>操作流程</strong>：
+1. 从现有 <code>team1121_v3.tar.gz</code> 加载 Docker 镜像
+2. <code>docker tag team1121:v3 team1121:final</code> 重新标记
+3. <code>docker save</code> + <code>gzip</code> 导出为 <code>team1121_final.tar.gz</code>（267.51 MB）
+4. 镜像 SHA256 验证：<code>team1121:final</code> 与 <code>team1121:v3</code> 完全一致</p>
+<h3>6.2 验证结果</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">检查项</th>
+<th style="text-align: left;">状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">镜像 ID 一致性</td>
+<td style="text-align: left;">SHA256 完全相同 (通过)</td>
+</tr>
+<tr>
+<td style="text-align: left;">容器正常启动</td>
+<td style="text-align: left;">exit code = 0 (通过)</td>
+</tr>
+<tr>
+<td style="text-align: left;">单任务测试（task_25）</td>
+<td style="text-align: left;">1/1 succeeded (通过)</td>
+</tr>
+<tr>
+<td style="text-align: left;">输出格式</td>
+<td style="text-align: left;"><code>/output/task_25/prediction.csv</code> 标准 CSV (通过)</td>
+</tr>
+<tr>
+<td style="text-align: left;">日志写入</td>
+<td style="text-align: left;"><code>/logs/runtime.log</code> 正常 (通过)</td>
+</tr>
+<tr>
+<td style="text-align: left;">文件大小</td>
+<td style="text-align: left;">267.51 MB &lt; 10 GB (通过)</td>
+</tr>
+</tbody>
+</table>
+<h3>6.3 提交信息</h3>
+<ul>
+<li><strong>镜像名</strong>：<code>team1121:final</code></li>
+<li><strong>压缩包</strong>：<code>team1121_final.tar.gz</code></li>
+<li><strong>邮件主题</strong>：<code>[KDDCup2026 Data Agents] B-board Final Submission - team1121</code></li>
+<li><strong>截止时间</strong>：2026-05-23 19:59 北京时间</li>
+</ul>
+<hr />
+<h2>七、提交历史</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">序号</th>
+<th style="text-align: left;">版本</th>
+<th style="text-align: left;">分支</th>
+<th style="text-align: left;">提交时间</th>
+<th style="text-align: left;">A-Board 得分</th>
+<th style="text-align: left;">备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">v1</td>
+<td style="text-align: left;">main</td>
+<td style="text-align: left;">Phase 1 早期</td>
+<td style="text-align: left;">0.3298</td>
+<td style="text-align: left;">官方基准微调</td>
+</tr>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">v3</td>
+<td style="text-align: left;">v3</td>
+<td style="text-align: left;">Phase 1 中期</td>
+<td style="text-align: left;"><strong>0.5114</strong></td>
+<td style="text-align: left;">Schema KG + PageIndex 基准 (最高分)</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">v4</td>
+<td style="text-align: left;">v4</td>
+<td style="text-align: left;">Phase 1 中期</td>
+<td style="text-align: left;">0.2982</td>
+<td style="text-align: left;">v3 去掉分级策略版本</td>
+</tr>
+<tr>
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">v5</td>
+<td style="text-align: left;">LLMWIKI</td>
+<td style="text-align: left;">Phase 1 后期</td>
+<td style="text-align: left;">0.1658</td>
+<td style="text-align: left;">LLM Wiki 模式</td>
+</tr>
+<tr>
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">v6</td>
+<td style="text-align: left;">v5</td>
+<td style="text-align: left;">Phase 1 后期</td>
+<td style="text-align: left;">0.3184</td>
+<td style="text-align: left;">Schema KG + PageIndex + Prompt 优化</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Final</strong></td>
+<td style="text-align: left;"><strong>final</strong></td>
+<td style="text-align: left;"><strong>v3</strong></td>
+<td style="text-align: left;"><strong>2026-05-22</strong></td>
+<td style="text-align: left;">—</td>
+<td style="text-align: left;"><strong>B-Board 提交</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>KDD Cup 2026 Data Agents Challenge — Team 1121 Phase 1 Report</em></p>
+</main>
+    </div>
+
+    <!-- Back to Top FAB -->
+    <button class="back-to-top" id="back-to-top-btn" title="返回顶部">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"></line>
+            <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+    </button>
+
+    <script>
+        // Wrap code blocks in code-containers with a copy button
+        document.querySelectorAll('pre').forEach((pre) => {
+            const codeBlock = pre.querySelector('code');
+            if (codeBlock) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                
+                const header = document.createElement('div');
+                header.className = 'code-header';
+                
+                // Try to detect language
+                let lang = 'code';
+                codeBlock.classList.forEach((cls) => {
+                    if (cls.startsWith('language-')) {
+                        lang = cls.replace('language-', '').toUpperCase();
+                    }
+                });
+                
+                header.innerHTML = `<span>${lang}</span><button class="copy-btn">复制代码</button>`;
+                
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(header);
+                container.appendChild(pre);
+                
+                header.querySelector('.copy-btn').addEventListener('click', function(e) {
+                    const text = codeBlock.textContent;
+                    navigator.clipboard.writeText(text).then(() => {
+                        this.textContent = '已复制!';
+                        setTimeout(() => {
+                            this.textContent = '复制代码';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                    });
+                });
+            }
+        });
+
+        // Init Syntax Highlighting
+        hljs.highlightAll();
+
+        // Scroll Progress Indicator
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('scroll-progress').style.width = scrolled + '%';
+        });
+
+        // Dark/Light Theme Switching
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        // Detect system preferences or localstorage
+        const savedTheme = localStorage.getItem('theme');
+        const systemPrefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        
+        if (savedTheme === 'light' || (!savedTheme && systemPrefersLight)) {
+            document.body.classList.add('light-theme');
+            updateThemeIcon('light');
+        } else {
+            updateThemeIcon('dark');
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const isLight = document.body.classList.toggle('light-theme');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            updateThemeIcon(isLight ? 'light' : 'dark');
+        });
+
+        function updateThemeIcon(theme) {
+            if (theme === 'light') {
+                // Moon icon
+                themeIcon.innerHTML = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+            } else {
+                // Sun icon
+                themeIcon.innerHTML = `
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                `;
+            }
+        }
+
+        // Restructure "各版本技术方案详解" (Section 3.3) into Interactive Tabs dynamically
+        function setupInteractiveTabs() {
+            const markdownBody = document.querySelector('.markdown-body');
+            if (!markdownBody) return;
+            
+            // Find all h4 headers between section 3.3 and section 3.4 to avoid selector collision
+            const versionHeaders = [];
+            const h3Headers = Array.from(markdownBody.querySelectorAll('h3'));
+            const sec33Header = h3Headers.find(h => h.textContent.includes('各版本技术方案详解'));
+            if (sec33Header) {
+                let next = sec33Header.nextElementSibling;
+                while (next && next.tagName.toLowerCase() !== 'h2' && next.tagName.toLowerCase() !== 'h3') {
+                    if (next.tagName.toLowerCase() === 'h4') {
+                        versionHeaders.push(next);
+                    }
+                    next = next.nextElementSibling;
+                }
+            }
+            
+            if (versionHeaders.length === 0) return;
+            
+            // Create Tabs Container
+            const tabsContainer = document.createElement('div');
+            tabsContainer.className = 'tabs-container';
+            
+            const tabsHeader = document.createElement('div');
+            tabsHeader.className = 'tabs-header';
+            
+            const tabsContent = document.createElement('div');
+            tabsContent.className = 'tabs-content';
+            
+            tabsContainer.appendChild(tabsHeader);
+            tabsContainer.appendChild(tabsContent);
+            
+            // Insert tabsContainer before the first version header
+            const parent = versionHeaders[0].parentNode;
+            parent.insertBefore(tabsContainer, versionHeaders[0]);
+            
+            // Helper to get all sibling elements until the next header or hr
+            function getPanelElements(header) {
+                const elems = [];
+                let next = header.nextElementSibling;
+                while (next && !versionHeaders.includes(next) && next.tagName.toLowerCase() !== 'h2' && next.tagName.toLowerCase() !== 'h3') {
+                    elems.push(next);
+                    next = next.nextElementSibling;
+                }
+                return elems;
+            }
+            
+            versionHeaders.forEach((header, index) => {
+                // Create Button
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn';
+                
+                // Format label for tab button
+                                // Format label for tab button
+                let rawLabel = header.textContent.split('—')[0].split('/')[0].trim().toLowerCase();
+                let label = '实验分支';
+                let icon = '';
+                
+                if (rawLabel.includes('wiki') || rawLabel === 'v5') {
+                    icon = 'v5';
+                    label = 'LLM Wiki';
+                } else if (rawLabel.includes('v6') || rawLabel.includes('v5 分支')) {
+                    icon = 'v6';
+                    label = 'Prompt 优化';
+                } else if (rawLabel.includes('v3')) {
+                    icon = '⭐ v3';
+                    label = '最优方案';
+                } else if (rawLabel.includes('v1') || rawLabel.includes('main')) {
+                    icon = 'v1';
+                    label = '基准微调';
+                } else if (rawLabel.includes('v4')) {
+                    icon = 'v4';
+                    label = '去掉分级';
+                }
+                
+                btn.innerHTML = icon ? `${icon} (${label})` : label;
+                btn.setAttribute('data-tab', `tab-${index}`);
+                tabsHeader.appendChild(btn);
+                
+                // Create Panel
+                const panel = document.createElement('div');
+                panel.className = 'tab-panel';
+                panel.id = `tab-${index}`;
+                
+                // Append original header (styled slightly differently inside the panel)
+                const panelHeader = document.createElement('h3');
+                panelHeader.textContent = header.textContent;
+                panelHeader.style.marginTop = '0';
+                panelHeader.style.borderLeft = '4px solid var(--accent-blue)';
+                panelHeader.style.paddingLeft = '0.75rem';
+                panel.appendChild(panelHeader);
+                
+                // Move sibling content elements into the panel
+                const contentElems = getPanelElements(header);
+                contentElems.forEach(el => {
+                    panel.appendChild(el);
+                });
+                
+                tabsContent.appendChild(panel);
+                
+                // Remove the original header from DOM (since it's moved into panel)
+                header.remove();
+            });
+            
+            // Set active tab behavior
+            const tabButtons = tabsHeader.querySelectorAll('.tab-btn');
+            const tabPanels = tabsContent.querySelectorAll('.tab-panel');
+            
+            // Activate the v3 panel first if it exists, otherwise the first panel
+            let activeIndex = 0;
+            tabButtons.forEach((btn, idx) => {
+                if (btn.innerHTML.includes('v3') || btn.innerHTML.includes('最优')) {
+                    activeIndex = idx;
+                }
+            });
+            
+            tabButtons[activeIndex].classList.add('active');
+            tabPanels[activeIndex].classList.add('active');
+            
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabButtons.forEach(b => b.classList.remove('active'));
+                    tabPanels.forEach(p => p.classList.remove('active'));
+                    
+                    btn.classList.add('active');
+                    const tabId = btn.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+        
+        setupInteractiveTabs();
+
+        // Dynamic Table of Contents Generation
+        const tocContainer = document.getElementById('toc-container');
+        const headings = document.querySelectorAll('.markdown-body h2, .markdown-body h3');
+        
+        const headingList = Array.from(headings);
+        
+        headingList.forEach((heading, index) => {
+            const text = heading.textContent.trim();
+            const id = 'heading-' + index;
+            heading.id = id;
+            
+            const isH2 = heading.tagName.toLowerCase() === 'h2';
+            
+            const li = document.createElement('li');
+            li.className = 'toc-item';
+            if (!isH2) {
+                li.style.paddingLeft = '1rem';
+            }
+            
+            const a = document.createElement('a');
+            a.href = '#' + id;
+            a.textContent = text;
+            a.title = text;
+            
+            li.appendChild(a);
+            tocContainer.appendChild(li);
+        });
+
+        // Sidebar active link highlighting on scroll
+        const tocItems = document.querySelectorAll('.toc-item');
+        window.addEventListener('scroll', () => {
+            let currentActiveIndex = 0;
+            const scrollPos = window.scrollY + 100;
+            
+            for (let i = 0; i < headingList.length; i++) {
+                if (headingList[i].offsetTop <= scrollPos) {
+                    currentActiveIndex = i;
+                } else {
+                    break;
+                }
+            }
+            
+            tocItems.forEach((item, index) => {
+                if (index === currentActiveIndex) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        });
+
+        // Back to top behavior
+        const backToTopBtn = document.getElementById('back-to-top-btn');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        });
+        
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

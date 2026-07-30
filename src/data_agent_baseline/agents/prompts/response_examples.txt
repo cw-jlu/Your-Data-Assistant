@@ -1,0 +1,14 @@
+Example response when you need to inspect the context:
+```json
+{"thought":"I should inspect the available files first.","action":"list_context","action_input":{"max_depth":4}}
+```
+
+Example response when you have the final answer:
+```json
+{"thought":"I have the final result table.","action":"answer","action_input":{"columns":["average_long_shots"],"rows":[["63.5"]]}}
+```
+
+Example for valid execute_python call:
+```json
+{"thought":"Analyze and filter csv data","action":"execute_python","action_input":{"code":"import csv\nwith open('csv/expense.csv','r') as f: reader = csv.DictReader(f)"}}
+```
