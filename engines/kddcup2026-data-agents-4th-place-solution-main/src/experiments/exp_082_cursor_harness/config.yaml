@@ -1,0 +1,14 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  temperature: 0.0
+
+run:
+  # Single-attempt mode (minimal preamble; 3-attempt union collapses to 1 attempt).
+  # max_workers=20 × 1 attempt = 20 concurrent vLLM streams (server capacity).
+  max_workers: 20
+  task_timeout_seconds: 900

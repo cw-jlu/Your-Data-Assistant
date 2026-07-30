@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kobushi"
+version = "0.1.0"
+description = "AI-driven experiment framework for KDD Cup 2026 DABench"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets>=3.3.2",
+    "datasketch>=1.10.0",
+    "duckdb>=1.5.0",
+    "faster-whisper>=1.1.1",
+    "huggingface-hub>=0.29.3",
+    "networkx>=3.4.2",
+    "numpy>=2.2.6",
+    "openai>=2.28.0",
+    "opencv-python-headless",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.3",
+    "polars>=1.39.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.10.6",
+    "pypdf>=4.0.0",
+    "pyyaml>=6.0.2",
+    "qwen-agent>=0.0.34",
+    "rich>=13.9.4",
+    "soundfile>=0.13.1",
+    "typer>=0.15.2",
+    "yt-dlp",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.5",
+    "ruff>=0.11.0",
+]
+
+[project.scripts]
+kobushi = "kobushi_core.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kobushi_core", "src/experiments"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

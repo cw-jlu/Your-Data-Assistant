@@ -1,0 +1,205 @@
+{
+  "last_updated": "2026-05-12",
+  "metrics": {
+    "ablation_passes_required": 5,
+    "leaderboard_dependent": false,
+    "source": "v5/v6 forensics on public 50-task set"
+  },
+  "shape_policies": [
+    {
+      "evidence": [
+        "task_352",
+        "task_396",
+        "task_418"
+      ],
+      "match": {
+        "is_heavy": true
+      },
+      "policy": {
+        "max_steps_multiplier": 1.25,
+        "notes": [
+          "v5/v6 50-task: task_352 / 396 / 418 timed out 100% of the time at 900-1200s. Higher budget alone doesn't recover but partial credit becomes possible when the agent picks the streaming path."
+        ],
+        "prompt_hints": [
+          "Heavy task detected (extreme tier or large context). Avoid loading entire files into memory.",
+          "Use SQL aggregations / streaming tools / dataframe_head with small max_rows. Do NOT call read_csv / read_json on huge files."
+        ],
+        "timeout_multiplier": 1.5
+      },
+      "priority": 100
+    },
+    {
+      "evidence": [
+        "task_249 (166MB)",
+        "task_259 (182MB)",
+        "task_257 (441MB)"
+      ],
+      "match": {
+        "has_large_json": true
+      },
+      "policy": {
+        "avoid_tools": [
+          "read_json"
+        ],
+        "notes": [
+          "task_249 (166MB) had aggregate question; full read_json times out before parsing finishes. Streaming aggregate computes the answer in seconds."
+        ],
+        "preferred_tools": [
+          "streaming_json_keys",
+          "streaming_json_count",
+          "streaming_json_aggregate"
+        ],
+        "prompt_hints": [
+          "Large JSON file (>=50MB) present. Do NOT call read_json — the response is capped and you will miss data.",
+          "Call streaming_json_keys first to discover the schema, then use streaming_json_count / streaming_json_aggregate for the answer."
+        ]
+      },
+      "priority": 90
+    },
+    {
+      "evidence": [
+        "task_330 (267MB)"
+      ],
+      "match": {
+        "has_large_db": true
+      },
+      "policy": {
+        "notes": [
+          "task_330 trace shows full-table reads exhaust the model context. Aggregate-first pattern keeps the prompt small."
+        ],
+        "prompt_hints": [
+          "Large SQLite DB (>=100MB) present. Use SQL aggregations (SUM / AVG / COUNT / GROUP BY) and project only the columns you need.",
+          "Run inspect_sqlite_schema first; never SELECT *."
+        ]
+      },
+      "priority": 80
+    },
+    {
+      "evidence": [
+        "task_38 (58MB)",
+        "task_420 (59MB)"
+      ],
+      "match": {
+        "has_large_csv": true
+      },
+      "policy": {
+        "prompt_hints": [
+          "Large CSV (>=50MB) present. Prefer dataframe_head with explicit small max_rows (10-50) over read_csv.",
+          "Use dataframe_describe to get the schema + value distributions before deciding how to filter / aggregate."
+        ]
+      },
+      "priority": 70
+    },
+    {
+      "evidence": [
+        "task_408 (value mismatch on average)",
+        "task_249 (avg upvotes)",
+        "task_25",
+        "task_80",
+        "task_163",
+        "task_169",
+        "task_196",
+        "task_199"
+      ],
+      "match": {
+        "is_aggregate_question": true
+      },
+      "policy": {
+        "enable_dual_path": true,
+        "prompt_hints": [
+          "Aggregate question detected (avg / sum / count / min / max). Compute the value via TWO independent paths (e.g. SQL AND pandas).",
+          "If the two paths disagree, investigate before answering — value-mismatch with correct shape is the most common 0-score failure."
+        ],
+        "timeout_multiplier": 1.4
+      },
+      "priority": 60
+    },
+    {
+      "evidence": [
+        "task_22 (gold 2 rows, pred 1 row — under-emission)",
+        "task_11",
+        "task_19",
+        "task_25",
+        "task_86",
+        "task_173",
+        "task_180"
+      ],
+      "match": {
+        "is_plural_question": true
+      },
+      "policy": {
+        "max_steps_multiplier": 1.25,
+        "prompt_hints": [
+          "Plural question (list / which / who / all). Apply DISTINCT, count expected matches, and verify each row corresponds to a unique entity."
+        ]
+      },
+      "priority": 50
+    },
+    {
+      "evidence": [
+        "task_19 (zip5 vs zip9 mismatch — Illinois lookup never matched)"
+      ],
+      "match": {
+        "has_large_json": true,
+        "is_plural_question": true
+      },
+      "policy": {
+        "prompt_hints": [
+          "Zip-code joins (chronic loop): when matching a member zip to a reference zip table, the two sides may use different formats (5-digit vs 9-digit ZIP+4). Cast both to the SAME width before comparison: try LEFT(zip, 5), CAST(zip AS TEXT), or strip non-digits. Source data style is BIRD-typical: ZIP+4 in one table, ZIP-5 in another."
+        ]
+      },
+      "priority": 75
+    },
+    {
+      "evidence": [
+        "task_80 (lap time string compare — '0:01:54' never matched)"
+      ],
+      "match": {
+        "difficulty": "easy",
+        "is_singular_question": true
+      },
+      "policy": {
+        "prompt_hints": [
+          "Time/duration string compare: when the question's filter value looks like '0:01:54' (H:MM:SS), the source column may store '1:54.000' (M:SS.ms) or seconds-only. Cast/format both sides before comparison; do not rely on string equality. If filter yields 0 rows AND the column min/max overlap the requested range, commit empty with confirm:true."
+        ]
+      },
+      "priority": 70
+    },
+    {
+      "evidence": [
+        "task_75",
+        "task_169",
+        "task_303"
+      ],
+      "match": {
+        "is_aggregate_question": false,
+        "is_singular_question": true
+      },
+      "policy": {
+        "prompt_hints": [
+          "Singular question — the answer is a single value (1x1 table). Do NOT widen with bookkeeping columns or extra rows."
+        ]
+      },
+      "priority": 40
+    },
+    {
+      "evidence": [
+        "task_344",
+        "task_352",
+        "task_379",
+        "task_396",
+        "task_408",
+        "task_420",
+        "task_350"
+      ],
+      "match": {
+        "difficulty": "hard"
+      },
+      "policy": {
+        "timeout_multiplier": 1.6
+      },
+      "priority": 0
+    }
+  ],
+  "version": "v7"
+}

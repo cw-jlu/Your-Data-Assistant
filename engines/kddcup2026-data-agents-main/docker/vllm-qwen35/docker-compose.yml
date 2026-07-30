@@ -1,0 +1,44 @@
+services:
+  vllm:
+    image: ${DOCKER_IMAGE:-qwen35-vllm:cu130-nightly}
+    build:
+      context: ${BUILD_CONTEXT:-.}
+      dockerfile: ${DOCKERFILE_PATH:-docker/vllm-qwen35/Dockerfile}
+    container_name: ${CONTAINER_NAME:-qwen-vllm}
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    gpus: all
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    environment:
+      HF_HOME: /hf_cache
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+      HF_HUB_DISABLE_XET: ${HF_HUB_DISABLE_XET:-1}
+    volumes:
+      - ${HF_HOME:?set HF_HOME}:/hf_cache
+    # NOTE: command must stay a YAML list with a single literal-block
+    # element. Compose otherwise splits the folded scalar into an array
+    # and `bash -lc` ends up running just `python3` (the first arg becomes
+    # the command_string and the rest become positional params), which
+    # exits 0 immediately with no logs. See incident 2026-04-28.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        exec python3 -m vllm.entrypoints.openai.api_server \
+          --model "${MODEL_REPO:-Qwen/Qwen3.5-35B-A3B}" \
+          --served-model-name "${MODEL_ALIAS:-qwen3.5-35b-a3b}" \
+          --host "${HOST:-0.0.0.0}" \
+          --port "${PORT:-8000}" \
+          --max-model-len "${MAX_MODEL_LEN:-262144}" \
+          --seed "${SEED:-1024}" \
+          --gpu-memory-utilization "${GPU_MEM_UTIL:-0.85}" \
+          --tensor-parallel-size "${TENSOR_PARALLEL:-1}" \
+          --dtype "${DTYPE:-bfloat16}" \
+          --trust-remote-code \
+          --enable-prefix-caching \
+          --attention-backend "${ATTENTION_BACKEND:-TRITON_ATTN}" \
+          ${VLLM_OPTIONAL_ARGS:-} \
+          ${EXTRA_VLLM_ARGS:-}

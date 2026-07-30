@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 600" role="img" aria-labelledby="title desc">
+  <title id="title">稳定区间与 ASR 片段的时间重叠判定</title>
+  <desc id="desc">上半部分显示视频稳定区间十二到十八秒与 ASR 片段十六到二十二秒重叠，最大起点十六小于等于最小终点十八，所以保留。下半部分显示两个区间不重叠，最大起点二十八大于最小终点二十七，所以不保留。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#52616b"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; fill: #263238; }
+    .small { font-size: 16px; fill: #52616b; }
+    .label { font-size: 18px; font-weight: 600; }
+    .formula { font-size: 22px; font-weight: 600; }
+    .tick { font-size: 15px; fill: #52616b; }
+  </style>
+
+  <text x="60" y="88" class="label">有重叠：保留该 ASR 片段</text>
+  <line x1="250" y1="124" x2="1010" y2="124" stroke="#aeb8bf" stroke-width="2"/>
+  <g class="tick">
+    <text x="250" y="150" text-anchor="middle">10s</text>
+    <text x="402" y="150" text-anchor="middle">12s</text>
+    <text x="554" y="150" text-anchor="middle">14s</text>
+    <text x="706" y="150" text-anchor="middle">16s</text>
+    <text x="858" y="150" text-anchor="middle">18s</text>
+    <text x="1010" y="150" text-anchor="middle">20s+</text>
+  </g>
+  <g stroke="#d7dde1" stroke-width="1">
+    <line x1="402" y1="112" x2="402" y2="270"/>
+    <line x1="706" y1="112" x2="706" y2="270"/>
+    <line x1="858" y1="112" x2="858" y2="270"/>
+  </g>
+  <rect x="706" y="164" width="152" height="96" rx="4" fill="#dff3e9"/>
+  <text x="74" y="193" class="label">视频稳定区间</text>
+  <rect x="402" y="170" width="456" height="34" rx="5" fill="#4d8fd3"/>
+  <text x="630" y="193" text-anchor="middle" fill="#ffffff" font-size="16">12–18 秒</text>
+  <text x="74" y="246" class="label">ASR 语音片段</text>
+  <rect x="706" y="223" width="304" height="34" rx="5" fill="#ee9b4a"/>
+  <text x="858" y="246" text-anchor="middle" fill="#ffffff" font-size="16">16–22 秒</text>
+  <line x1="706" y1="158" x2="706" y2="104" stroke="#52616b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="706" y="97" text-anchor="middle" class="small">较晚开始：max(12,16)=16</text>
+  <line x1="858" y1="158" x2="858" y2="104" stroke="#52616b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="858" y="78" text-anchor="middle" class="small">较早结束：min(18,22)=18</text>
+  <text x="706" y="286" text-anchor="middle" font-size="16" fill="#227a57">绿色区域：共同时间为 16–18 秒</text>
+  <text x="555" y="326" text-anchor="middle" class="formula">max(12,16)=16 ≤ min(18,22)=18 → 有重叠，保留</text>
+
+  <line x1="60" y1="360" x2="1060" y2="360" stroke="#d7dde1" stroke-width="2"/>
+  <text x="60" y="402" class="label">无重叠：不把该 ASR 片段挂入这个稳定区间</text>
+  <line x1="250" y1="438" x2="1010" y2="438" stroke="#aeb8bf" stroke-width="2"/>
+  <g class="tick">
+    <text x="402" y="464" text-anchor="middle">23s</text>
+    <text x="554" y="464" text-anchor="middle">25s</text>
+    <text x="706" y="464" text-anchor="middle">27s</text>
+    <text x="782" y="464" text-anchor="middle">28s</text>
+    <text x="1010" y="464" text-anchor="middle">31s</text>
+  </g>
+  <text x="74" y="506" class="label">视频稳定区间</text>
+  <rect x="402" y="482" width="304" height="34" rx="5" fill="#4d8fd3"/>
+  <text x="554" y="505" text-anchor="middle" fill="#ffffff" font-size="16">23–27 秒</text>
+  <text x="74" y="559" class="label">ASR 语音片段</text>
+  <rect x="782" y="535" width="228" height="34" rx="5" fill="#ee9b4a"/>
+  <text x="896" y="558" text-anchor="middle" fill="#ffffff" font-size="16">28–31 秒</text>
+  <line x1="706" y1="477" x2="782" y2="477" stroke="#d85d4a" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="744" y="497" text-anchor="middle" font-size="15" fill="#b84638">没有共同时间</text>
+  <text x="820" y="418" text-anchor="middle" class="formula">max(23,28)=28 &gt; min(27,31)=27 → 无重叠，不保留</text>
+</svg>

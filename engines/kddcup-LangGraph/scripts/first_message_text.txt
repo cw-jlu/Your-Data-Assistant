@@ -1,0 +1,15 @@
+No 'content' found in last_message. Dumping the whole last_message keys:
+dict_keys(['type', 'name', 'content_preview', 'content_length', 'content_part_types', 'video_part_count', 'image_part_count'])
+Key: type, type: <class 'str'>, value_preview: human
+
+Key: name, type: <class 'NoneType'>, value_preview: None
+
+Key: content_preview, type: <class 'str'>, value_preview: [{"type": "text", "text": "<user_query>\nUser Question: 根据视频中展示的年度定增审核批次配置，哪些公司属于该年度批次的股票增发记录，它们的增发目的分别是什么？\n</user_query>\n\n<context_injection>\nTo help you answer the <user_quer...
+
+Key: content_length, type: <class 'int'>, value_preview: 413869
+
+Key: content_part_types, type: <class 'list'>, value_preview: ['text', 'image_url', 'image_url', 'image_url', 'image_url', 'image_url', 'image_url']
+
+Key: video_part_count, type: <class 'int'>, value_preview: 0
+
+Key: image_part_count, type: <class 'int'>, value_preview: 6

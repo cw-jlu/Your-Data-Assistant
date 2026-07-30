@@ -1,0 +1,26 @@
+2021 Seasoned Equity Offering Records:
+Code       | Name (from JSON)          | Name (DB mapping)         | Date                 | Purpose
+------------------------------------------------------------------------------------------------------------------------
+002043     | 兔宝宝                       | 兔 宝 宝                     (德华兔宝宝装饰新材股份有限公司) | 2021-11-23 00:00:00  | For repaying bank loans and supplementing working capital
+600319     | 亚星化学                      | *ST 亚星                    (潍坊亚星化学股份有限公司) | 2021-04-29 00:00:00  | For supplementing working capital
+002590     | 万安科技                      | 万安科技                      (浙江万安科技股份有限公司) | 2021-12-08 00:00:00  | For supplementing working capital, etc.
+300055     | 万邦达                       | 万 邦 达                     (北京万邦达环保技术股份有限公司) | 2021-09-11 00:00:00  | For the Jilin Chemical Industry Park green circular economy resource comprehensive utilization project (Phase I), etc.
+300391     | 康跃科技                      | 康跃科技                      (康跃科技股份有限公司) | 2021-03-10 00:00:00  | For headquarters operations center and IT infrastructure construction, etc.
+300168     | 万达信息                      | 万达信息                      (万达信息股份有限公司) | 2021-08-07 00:00:00  | For future public health and medical innovation management service projects, etc.
+300252     | 金信诺                       | 金 信 诺                     (深圳金信诺高新技术股份有限公司) | 2021-01-08 00:00:00  | For Xinfeng Jingxino Antainuo High-Tech Co., Ltd.’s intelligent factory expansion and renovation project for annual production of 1.68 million m² of multilayer PCBs (including 1.08 million m² newly added) and supplementing working capital
+300163     | 先锋新材                      | 先锋新材                      (宁波先锋新材料股份有限公司) | 2021-07-24 00:00:00  | For the annual production of 23 million m² of continuous fiber-reinforced thermoplastic composites (CGFRP, CPFRP), etc.
+600190     | 锦州港                       | 锦 州 港                     (锦州港股份有限公司) | 2021-04-29 00:00:00  | For the oil & chemical berths project on the east shore of the third harbor basin of Jinzhou Port, etc.
+002617     | 露笑科技                      | 露笑科技                      (露笑科技股份有限公司) | 2021-11-24 00:00:00  | For the third-generation power semiconductor (silicon carbide) industrial park project, etc.
+603722     | 阿科力                       | 阿 科 力                     (无锡阿科力科技股份有限公司) | 2021-06-01 00:00:00  | For the annual production of 10,000 tons of polyetheramine and 10,000 tons of optical materials (cycloolefin monomers and polymers), etc.
+002559     | 亚威股份                      | 亚威股份                      (江苏亚威机床股份有限公司) | 2021-09-09 00:00:00  | For repaying interest-bearing liabilities and supplementing working capital
+002694     | 顾地科技                      | 顾地科技                      (顾地科技股份有限公司) | 2021-12-30 00:00:00  | For supplementing operating funds and repaying bank loans
+600361     | 华联综超                      | 华联综超                      (北京华联综合超市股份有限公司) | 2021-08-07 00:00:00  | Acquisition of 100% equity interest in Chuangxin Metal
+600361     | 华联综超                      | 华联综超                      (北京华联综合超市股份有限公司) | 2021-08-07 00:00:00  | Proceeds from concurrent financing to fund the annual production of 800,000 tons of high-strength, high-toughness aluminum alloy materials project (Phase II), etc.
+002272     | 川润股份                      | 川润股份                      (四川川润股份有限公司) | 2021-11-12 00:00:00  | For intelligent manufacturing upgrade and capacity expansion projects, supplementing working capital, etc.
+603489     | 八方股份                      | 八方股份                      (八方电气(苏州)股份有限公司) | 2021-11-27 00:00:00  | For electric two-wheeler drive system (Suzhou) manufacturing project, electric vehicle drive system (Tianjin) manufacturing project, and R&D & testing center construction project
+300680     | 隆盛科技                      | 隆盛科技                      (无锡隆盛科技股份有限公司) | 2021-11-12 00:00:00  | For R&D and manufacturing of core components of high-efficiency, high-density drive motor systems for new energy vehicles (Phase I), and supplementing working capital
+300603     | 立昂技术                      | 立昂技术                      (立昂技术股份有限公司) | 2021-06-02 00:00:00  | For the Phase I construction of Lion Cloud Data (Chengdu) No. 1 Base, etc.
+300657     | 弘信电子                      | 弘信电子                      (厦门弘信电子科技集团股份有限公司) | 2021-06-03 00:00:00  | Acquisition of 100% equity interest in Huayang Electronics
+300657     | 弘信电子                      | 弘信电子                      (厦门弘信电子科技集团股份有限公司) | 2021-06-03 00:00:00  | Proceeds from concurrent financing to pay cash consideration, etc.
+603517     | 绝味食品                      | 绝味食品                      (绝味食品股份有限公司) | 2021-08-03 00:00:00  | For Guangdong Ahua Food Co., Ltd.’s construction project for annual processing of 65,700 tons of marinated meat products and by-products, etc.
+300316     | 晶盛机电                      | 晶盛机电                      (浙江晶盛机电股份有限公司) | 2021-10-26 00:00:00  | For supplementing working capital, etc.

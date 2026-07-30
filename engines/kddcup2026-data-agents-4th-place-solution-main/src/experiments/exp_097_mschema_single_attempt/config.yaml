@@ -1,0 +1,17 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  temperature: 0.0
+
+run:
+  # exp_097 [context-single]: per-task SINGLE attempt (T=0.6 only);
+  # workers=10 outer × 1 inner = 10 concurrent vLLM streams (saturation
+  # point ~13-15 streams per PRIORITIES.md 47-67, single-attempt new
+  # baseline). Bench wall clock expected ~25 min/run vs 90 min for
+  # 3-attempt; 3-run replication ~1.25h.
+  max_workers: 10
+  task_timeout_seconds: 900

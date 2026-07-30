@@ -1,0 +1,13 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  temperature: 0.0
+
+run:
+  # Single-attempt (T=0.6); max_workers=10 keeps vLLM streams in safe range.
+  max_workers: 10
+  task_timeout_seconds: 900

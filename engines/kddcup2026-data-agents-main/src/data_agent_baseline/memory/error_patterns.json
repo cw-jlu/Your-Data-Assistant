@@ -1,0 +1,164 @@
+{
+  "last_updated": "2026-05-12",
+  "metrics": {
+    "source": "v6/v7/v8 forensics on public 50-task set"
+  },
+  "patterns": [
+    {
+      "action": "execute_context_sql",
+      "error_signature": "sqlite_no_such_table",
+      "evidence_tasks": [
+        "task_145",
+        "task_173",
+        "task_196",
+        "task_214",
+        "task_261",
+        "task_287",
+        "task_303"
+      ],
+      "first_seen": "2026-05-11",
+      "frequency": 7,
+      "hint": "Verify the SQLite file path and run inspect_sqlite_schema; the table name in the question is not always the actual table name.",
+      "last_seen": "2026-05-11",
+      "match": {
+        "difficulty": "medium"
+      }
+    },
+    {
+      "action": "read_json",
+      "error_signature": "read_json_capped",
+      "evidence_tasks": [
+        "task_249",
+        "task_257",
+        "task_259"
+      ],
+      "first_seen": "2026-05-04",
+      "frequency": 5,
+      "hint": "read_json output is capped on huge files — switch to streaming_json_keys / streaming_json_count / streaming_json_aggregate which stream via ijson and have no size cap.",
+      "last_seen": "2026-05-08",
+      "match": {
+        "has_large_json": true
+      }
+    },
+    {
+      "action": "execute_python",
+      "error_signature": "python_timeout",
+      "evidence_tasks": [
+        "task_352",
+        "task_396",
+        "task_418"
+      ],
+      "first_seen": "2026-05-04",
+      "frequency": 4,
+      "hint": "execute_python has a 30s wall-clock cap; for heavy tasks delegate I/O to streaming tools or SQL aggregations — only use Python for the final small post-processing.",
+      "last_seen": "2026-05-08",
+      "match": {
+        "is_heavy": true
+      }
+    },
+    {
+      "action": "execute_context_sql",
+      "error_signature": "sqlite_no_such_column",
+      "evidence_tasks": [
+        "task_330",
+        "task_408"
+      ],
+      "first_seen": "2026-05-06",
+      "frequency": 3,
+      "hint": "Call inspect_sqlite_schema BEFORE composing any SELECT — large DBs often have unexpected column casings or table prefixes.",
+      "last_seen": "2026-05-08",
+      "match": {
+        "has_large_db": true
+      }
+    },
+    {
+      "action": "execute_python",
+      "error_signature": "python_memoryerror",
+      "evidence_tasks": [
+        "task_352",
+        "task_396"
+      ],
+      "first_seen": "2026-05-06",
+      "frequency": 2,
+      "hint": "Heavy task triggered MemoryError — never load the full file with json.load / pd.read_csv. Use streaming tools or chunked iteration (pd.read_csv(..., chunksize=...)).",
+      "last_seen": "2026-05-08",
+      "match": {
+        "is_heavy": true
+      }
+    },
+    {
+      "action": "execute_python",
+      "error_signature": "python_jsondecodeerror",
+      "evidence_tasks": [
+        "task_249"
+      ],
+      "first_seen": "2026-05-04",
+      "frequency": 2,
+      "hint": "JSONDecodeError typically means partial / streaming JSON — call streaming_json_keys first to inspect the actual structure (records[].field paths) before parsing.",
+      "last_seen": "2026-05-08",
+      "match": {
+        "file_types": {
+          "in": [
+            [
+              "json"
+            ],
+            [
+              "json",
+              "csv"
+            ],
+            [
+              "json",
+              "db"
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "action": "execute_context_sql",
+      "error_signature": "file is not a database",
+      "evidence_tasks": [
+        "task_24",
+        "task_80"
+      ],
+      "first_seen": "2026-05-11",
+      "frequency": 2,
+      "hint": "Recurring failure observed on similar tasks — inspect the data structure with list_context / dataframe_describe / inspect_sqlite_schema before retrying.",
+      "last_seen": "2026-05-11",
+      "match": {
+        "difficulty": "easy"
+      }
+    },
+    {
+      "action": "execute_context_sql",
+      "error_signature": "file is not a database",
+      "evidence_tasks": [
+        "task_38",
+        "task_330"
+      ],
+      "first_seen": "2026-05-11",
+      "frequency": 2,
+      "hint": "Recurring failure observed on similar tasks — inspect the data structure with list_context / dataframe_describe / inspect_sqlite_schema before retrying.",
+      "last_seen": "2026-05-11",
+      "match": {
+        "is_heavy": true
+      }
+    },
+    {
+      "action": "execute_python",
+      "error_signature": "sqlite_no_such_table",
+      "evidence_tasks": [
+        "task_169",
+        "task_200"
+      ],
+      "first_seen": "2026-05-11",
+      "frequency": 2,
+      "hint": "Verify the SQLite file path and run inspect_sqlite_schema; the table name in the question is not always the actual table name.",
+      "last_seen": "2026-05-11",
+      "match": {
+        "difficulty": "medium"
+      }
+    }
+  ],
+  "version": "v7"
+}

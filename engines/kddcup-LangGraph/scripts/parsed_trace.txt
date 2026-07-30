@@ -1,0 +1,51 @@
+
+================ STEP 1 ================
+Source: UNKNOWN | Type: UNKNOWN
+
+================ STEP 2 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: read_doc
+  Args: {"path": "video/briefing_timeline.md"}
+
+================ STEP 3 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: read_doc
+  Args: {"path": "video/briefing_timeline.md"}
+
+================ STEP 4 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE AdvanceDate LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 5 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE AdvanceDate LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 6 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE CAST(AdvanceDate AS TEXT) LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 7 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE CAST(AdvanceDate AS TEXT) LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 8 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: answer
+  Args: {"columns": ["公司名称", "增发目的"], "rows": [["海思科医药集团股份有限公司", "For China Phase III clinical trial and marketing authorization of HSK-7653, a long-acting oral antihyperglycemic drug, etc."], ["深圳丹邦科技股份有限公司", "For industrialization of quantum carbon compound thick-film projects, etc."], ["南国置业股份有限公司", "Acq
+
+================ STEP 9 ================
+Source: UNKNOWN | Type: UNKNOWN
+--- Tool Calls ---
+  Tool: answer
+  Args: {"columns": ["公司名称", "增发目的"], "rows": [["海思科医药集团股份有限公司", "For China Phase III clinical trial and marketing authorization of HSK-7653, a long-acting oral antihyperglycemic drug, etc."], ["深圳丹邦科技股份有限公司", "For industrialization of quantum carbon compound thick-film projects, etc."], ["南国置业股份有限公司", "Acq

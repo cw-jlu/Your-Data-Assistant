@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* ── Theme tokens ── */
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: var(--_canvas);
+  --color-surface: var(--_surface);
+  --color-panel: var(--_panel);
+  --color-elevated: var(--_elevated);
+  --color-border: var(--_border);
+  --color-border-hover: var(--_border-hover);
+  --color-fg: var(--_fg);
+  --color-fg-secondary: var(--_fg-secondary);
+  --color-fg-muted: var(--_fg-muted);
+  --color-accent: var(--_accent);
+  --color-accent-dimmed: var(--_accent-dimmed);
+  --color-success: var(--_success);
+  --color-success-dimmed: var(--_success-dimmed);
+  --color-danger: var(--_danger);
+  --color-danger-dimmed: var(--_danger-dimmed);
+  --color-warning: var(--_warning);
+  --color-warning-dimmed: var(--_warning-dimmed);
+  --color-purple: var(--_purple);
+  --color-purple-dimmed: var(--_purple-dimmed);
+  --color-muted-bg: var(--_muted-bg);
+  --color-scrollbar-track: var(--_scrollbar-track);
+  --color-scrollbar-thumb: var(--_scrollbar-thumb);
+}
+
+/* ── Dark palette (default) ── */
+:root,
+html[data-theme="dark"] {
+  --_canvas: #06090f;
+  --_surface: #0c1221;
+  --_panel: #111a2e;
+  --_elevated: #182340;
+  --_border: #1c2a4a;
+  --_border-hover: #2a3d66;
+  --_fg: #e1e7ef;
+  --_fg-secondary: #8896b0;
+  --_fg-muted: #4a5878;
+  --_accent: #22d3ee;
+  --_accent-dimmed: rgba(34, 211, 238, 0.12);
+  --_success: #34d399;
+  --_success-dimmed: rgba(52, 211, 153, 0.12);
+  --_danger: #fb7185;
+  --_danger-dimmed: rgba(251, 113, 133, 0.12);
+  --_warning: #fbbf24;
+  --_warning-dimmed: rgba(251, 191, 36, 0.12);
+  --_purple: #a78bfa;
+  --_purple-dimmed: rgba(167, 139, 250, 0.12);
+  --_muted-bg: rgba(136, 150, 176, 0.08);
+  --_scrollbar-track: #06090f;
+  --_scrollbar-thumb: #1c2a4a;
+}
+
+/* ── Light palette ── */
+html[data-theme="light"] {
+  --_canvas: #f5f7fb;
+  --_surface: #ffffff;
+  --_panel: #eef1f8;
+  --_elevated: #e4e9f2;
+  --_border: #d2d9e6;
+  --_border-hover: #b4bfd4;
+  --_fg: #111827;
+  --_fg-secondary: #4b5563;
+  --_fg-muted: #9ca3af;
+  --_accent: #0891b2;
+  --_accent-dimmed: rgba(8, 145, 178, 0.1);
+  --_success: #059669;
+  --_success-dimmed: rgba(5, 150, 105, 0.1);
+  --_danger: #e11d48;
+  --_danger-dimmed: rgba(225, 29, 72, 0.1);
+  --_warning: #d97706;
+  --_warning-dimmed: rgba(217, 119, 6, 0.1);
+  --_purple: #7c3aed;
+  --_purple-dimmed: rgba(124, 58, 237, 0.1);
+  --_muted-bg: rgba(75, 85, 99, 0.06);
+  --_scrollbar-track: #f5f7fb;
+  --_scrollbar-thumb: #d2d9e6;
+}
+
+/* ── Syntax highlighting (highlight.js) ── */
+.hljs { color: var(--_fg-secondary); }
+.hljs-keyword,
+.hljs-built_in { color: var(--_purple); }
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-title.class_ { color: var(--_warning); }
+.hljs-function .hljs-title,
+.hljs-title.function_ { color: var(--_accent); }
+.hljs-string,
+.hljs-doctag { color: var(--_success); }
+.hljs-number,
+.hljs-literal { color: var(--_danger); }
+.hljs-comment { color: var(--_fg-muted); font-style: italic; }
+.hljs-decorator,
+.hljs-meta { color: var(--_fg-muted); }
+.hljs-params { color: var(--_fg); }
+.hljs-attr,
+.hljs-attribute { color: var(--_accent); }
+.hljs-variable,
+.hljs-template-variable { color: var(--_fg); }
+.hljs-regexp { color: var(--_danger); }
+.hljs-selector-class,
+.hljs-selector-id { color: var(--_accent); }
+.hljs-name,
+.hljs-tag { color: var(--_danger); }
+
+/* ── Base ── */
+body {
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Noise overlay ── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-hover); }
+
+/* ── Stagger animation ── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Glow pulse for live dot ── */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px currentColor; }
+  50% { opacity: 0.4; box-shadow: 0 0 2px currentColor; }
+}
+
+.live-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ── Shimmer loading ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-panel) 50%,
+    var(--color-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Timeline connector ── */
+.timeline-connector {
+  position: relative;
+}
+.timeline-connector::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--indent) + 8px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+}
+
+/* ── Bar animation ── */
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.bar-animated {
+  transform-origin: left;
+  animation: bar-grow 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Number counter ── */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-count {
+  animation: count-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Theme transition ── */
+html {
+  transition: background-color 0.3s ease, color 0.2s ease;
+}

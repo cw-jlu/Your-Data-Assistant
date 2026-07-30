@@ -1,0 +1,87 @@
+dataset:
+  root_path: data/input
+
+agent:
+  model: qwen3.5-35b-a3b
+  api_base: http://127.0.0.1:8000/v1
+  api_key: "inspectai"
+  api_key_env: 
+  max_steps: 100
+  temperature: 0.0
+  model_request_timeout_seconds: 1800
+  max_tokens: 8192
+  enable_data_inspector: true
+  enable_answer_validator: true
+  enable_process_validator: false
+  enable_ambiguity_analysis: false
+  strip_reasoning_history: false
+  reasoning_history_limit:
+  prompt_version: 1
+  compress_used_image_messages: true
+  compressed_image_note_chars: 600
+data_inspector:
+  sample_budget:
+    catalog_top_distinct_values: 50
+    max_doc_tokens: 500
+  semantic_views:
+    enabled: true
+    min_confidence: 0.95
+    min_distinct_match_ratio: 0.90
+    strict_distinct_match_ratio: 0.95
+    min_target_uniqueness_ratio: 1.0
+    max_views: 30
+    max_dimension_fields_per_view: 12
+    max_dimensions_per_view: 2
+    min_payload_fields: 1
+    allow_one_to_one_enrichment: false
+
+video_preprocessing:
+  enabled: true
+  sample_fps: 2.0
+  diff_threshold: 0.025
+  pixel_delta: 25
+  min_stable_duration: 1.0
+  resize_width: 320
+  jpg_quality: 95
+  max_attached_frames: 16
+  asr_model: medium
+  asr_device: cpu
+  asr_compute_type: int8
+  asr_cpu_threads: 4
+  asr_num_workers: 8
+  asr_stage: dynamic-plus-ui
+  asr_language_detector_model: tiny
+  asr_language_threshold: 0.5
+  asr_prompt_min_terms: 1
+  asr_prompt_max_terms: 10
+  asr_ui_terms: [字段, 批次, 配置, 加载, 面板, 看板, 卡片, 队列, 筛选, 核对, 列, 路径]
+
+process_validator:
+  checkpoint_model_interval: 10
+  retry_limit: 5
+  recent_step_limit: 8
+  evidence_max_items: 12
+  evidence_max_str_tokens: 300
+  evidence_max_list_items: 5
+
+tool:
+  max_output_tokens: 7500
+  max_list_items: 200
+  structured_doc:
+    min_chunk_lines: 25
+    max_chunk_lines: 40
+    max_selected_lines_for_llm_extraction: 400
+    default_max_model_calls: 20
+    hard_max_model_calls: 20
+    inspect_doc_structure_max_model_calls: 3
+
+run:
+  output_dir: artifacts/runs
+  run_id:
+  max_workers: 4
+  extract_structured_doc_max_workers: 2
+  task_timeout_seconds: 2400
+  task_ids:
+    - task_173
+    - task_169
+    - task_199

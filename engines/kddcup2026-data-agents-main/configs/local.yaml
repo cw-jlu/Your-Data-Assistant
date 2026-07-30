@@ -1,0 +1,48 @@
+# Local development config.
+#
+# Workflow assumption (team1438): vLLM serves qwen3.5-35b-a3b on a
+# separate host (DGX = <VLLM_HOST> by default); macOS dev machines
+# build / test / package here. Override the endpoint via env vars at
+# run time:
+#
+#   export MODEL_API_URL=http://<VLLM_HOST>:8000/v1
+#   export MODEL_API_KEY=local           # vLLM accepts any non-empty key
+#   export MODEL_NAME=qwen3.5-35b-a3b
+#   uv run dabench run-benchmark --config configs/local.yaml \
+#       --task-set data/public/holdout_ids.txt
+#
+# `localhost:8000` below is a stub for the rare case where vLLM runs on
+# the same host. The single-model-policy guard in agents/model.py will
+# raise loudly if both env and yaml leave api_base empty, so silent
+# fallbacks to external providers can never happen.
+dataset:
+  root_path: data/public/input
+
+agent:
+  model: qwen3.5-35b-a3b
+  api_base: http://localhost:8000/v1
+  # Any non-empty string works for unauthenticated local vLLM.
+  api_key: local
+  max_steps: 16
+  temperature: 0.0
+
+run:
+  output_dir: artifacts/runs
+  run_id: null
+  max_workers: 4
+  task_timeout_seconds: 600
+  # v5/v8 — mirror eval.yaml's difficulty-tier timeouts so local chronic-10
+  # measurement matches submission-time behaviour. Hard/extreme tasks need
+  # the longer caps to avoid SUBPROC kills before the agent can finish.
+  task_timeout_by_difficulty:
+    easy: 300
+    medium: 600
+    hard: 2400
+    extreme: 3600
+  # Local development: keep run-id wrapper so you can compare versions.
+  flat_output_dir: false
+  # Optional: mirror events to a local log for telemetry analysis.
+  log_file: artifacts/logs/runtime.log
+  # Local dev: no budget by default. Set to 43200 to mirror eval (12h).
+  # 0 or omission disables the governor.
+  wall_clock_budget_seconds: 0

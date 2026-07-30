@@ -1,0 +1,20 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  # temperature is overridden per-attempt in runner._ATTEMPT_TEMPS=(0.6,).
+  # 0.0 here is just the unused default — only used if a caller bypasses
+  # _run_single_task_with_timeout.
+  temperature: 0.0
+
+run:
+  # Single-attempt × workers=10 = 10 concurrent vLLM streams (safe under
+  # vLLM saturation point ~13-15). Matches PRIORITIES default for
+  # single-attempt class. workers=20 (the original exp_082 setting) was
+  # the cause of the prior contamination — see PRIORITIES.md
+  # 「workers=20 期 score 再評価キュー」.
+  max_workers: 10
+  task_timeout_seconds: 900

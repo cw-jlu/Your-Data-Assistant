@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<title>kobushi — KDD Cup 2026 DABench dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-10">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+    <h1 class="text-lg sm:text-xl font-semibold">
+      <span class="text-emerald-400">kobushi</span>
+      <span class="text-slate-400 hidden sm:inline">— KDD Cup 2026 DABench</span>
+    </h1>
+    <div class="text-xs sm:text-sm text-slate-400">
+      <span id="last-updated">loading…</span>
+      <span class="hidden sm:inline mx-2">·</span>
+      <span id="git-sha" class="mono"></span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-4 sm:py-6 space-y-6">
+
+  <!-- KPI cards -->
+  <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="rounded-lg bg-slate-900 border border-slate-800 p-3">
+      <div class="text-xs text-slate-400 uppercase tracking-wide">best 3-att union (n=N)</div>
+      <div class="text-2xl font-semibold text-emerald-400 mono" id="kpi-best-repl-union">—</div>
+      <div class="text-xs text-slate-400 truncate" id="kpi-best-repl-union-exp">—</div>
+    </div>
+    <div class="rounded-lg bg-slate-900 border border-slate-800 p-3">
+      <div class="text-xs text-slate-400 uppercase tracking-wide">best single-att (n=N)</div>
+      <div class="text-2xl font-semibold text-fuchsia-400 mono" id="kpi-best-repl-single">—</div>
+      <div class="text-xs text-slate-400 truncate" id="kpi-best-repl-single-exp">—</div>
+    </div>
+    <div class="rounded-lg bg-slate-900 border border-slate-800 p-3">
+      <div class="text-xs text-slate-400 uppercase tracking-wide">latest LB</div>
+      <div class="text-2xl font-semibold text-amber-400 mono" id="kpi-lb">—</div>
+      <div class="text-xs text-slate-400 truncate" id="kpi-rank">—</div>
+    </div>
+    <div class="rounded-lg bg-slate-900 border border-slate-800 p-3">
+      <div class="text-xs text-slate-400 uppercase tracking-wide">experiments</div>
+      <div class="text-2xl font-semibold text-slate-100 mono" id="kpi-exp-count">—</div>
+      <div class="text-xs text-slate-400" id="kpi-exp-repl">— with n≥3</div>
+    </div>
+  </section>
+
+  <!-- Progress chart -->
+  <section class="rounded-lg bg-slate-900 border border-slate-800 p-3 sm:p-4">
+    <h2 class="text-sm font-semibold text-slate-300 mb-2">Best-so-far λ0.5 progress</h2>
+    <div class="overflow-x-auto -mx-3 sm:mx-0">
+      <img src="plots/progress_score.png" alt="progress score" class="w-full h-auto rounded">
+    </div>
+  </section>
+
+  <section class="rounded-lg bg-slate-900 border border-slate-800 p-3 sm:p-4">
+    <h2 class="text-sm font-semibold text-slate-300 mb-2">Perfect-recall progress</h2>
+    <div class="overflow-x-auto -mx-3 sm:mx-0">
+      <img src="plots/progress_perfect.png" alt="progress perfect" class="w-full h-auto rounded">
+    </div>
+  </section>
+
+  <!-- Submissions / LB -->
+  <section class="rounded-lg bg-slate-900 border border-slate-800 p-3 sm:p-4">
+    <h2 class="text-sm font-semibold text-slate-300 mb-2">📋 Leaderboard submissions</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs sm:text-sm mono">
+        <thead class="text-slate-400 border-b border-slate-800">
+          <tr>
+            <th class="text-left py-1 pr-2">ver</th>
+            <th class="text-left py-1 pr-2">exp</th>
+            <th class="text-right py-1 pr-2">local n=N</th>
+            <th class="text-right py-1 pr-2">LB</th>
+            <th class="text-right py-1 pr-2">rank</th>
+            <th class="text-right py-1">gap</th>
+          </tr>
+        </thead>
+        <tbody id="submissions-body" class="divide-y divide-slate-800/60"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Top experiments -->
+  <section class="rounded-lg bg-slate-900 border border-slate-800 p-3 sm:p-4">
+    <h2 class="text-sm font-semibold text-slate-300 mb-2">🏆 Top experiments by n=N mean</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs sm:text-sm mono">
+        <thead class="text-slate-400 border-b border-slate-800">
+          <tr>
+            <th class="text-left py-1 pr-2">exp</th>
+            <th class="text-right py-1 pr-2">n</th>
+            <th class="text-right py-1 pr-2">mean</th>
+            <th class="text-right py-1 pr-2">std</th>
+            <th class="text-right py-1">missing</th>
+          </tr>
+        </thead>
+        <tbody id="top-exp-body" class="divide-y divide-slate-800/60"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Recent experiments -->
+  <section class="rounded-lg bg-slate-900 border border-slate-800 p-3 sm:p-4">
+    <h2 class="text-sm font-semibold text-slate-300 mb-2">🕒 Recent experiments (latest 15)</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs sm:text-sm mono">
+        <thead class="text-slate-400 border-b border-slate-800">
+          <tr>
+            <th class="text-left py-1 pr-2">exp</th>
+            <th class="text-right py-1 pr-2">runs</th>
+            <th class="text-right py-1 pr-2">1-run</th>
+            <th class="text-right py-1 pr-2">n=N mean</th>
+            <th class="text-right py-1">missing</th>
+          </tr>
+        </thead>
+        <tbody id="recent-exp-body" class="divide-y divide-slate-800/60"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="text-xs text-slate-500 pt-2 pb-6 text-center">
+    Auto-refresh every 60s · static site backed by <a class="underline" href="https://github.com/kekshibata/kddcup2026-kobushi">kekshibata/kddcup2026-kobushi</a>
+  </footer>
+</main>
+
+<script>
+function fmt(n, digits=4) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toFixed(digits);
+}
+function ago(ts) {
+  const sec = (Date.now() / 1000) - ts;
+  if (sec < 60) return 'just now';
+  if (sec < 3600) return Math.floor(sec/60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec/3600) + 'h ago';
+  return Math.floor(sec/86400) + 'd ago';
+}
+
+async function load() {
+  // bust cache so the auto-reload sees fresh data
+  const res = await fetch('data.json?t=' + Date.now());
+  if (!res.ok) return;
+  const data = await res.json();
+
+  // Header
+  document.getElementById('last-updated').textContent =
+    'commit ' + ago(data.git.commit_ts || 0) + ' · ' + (data.git.msg || '').slice(0, 60);
+  document.getElementById('git-sha').textContent = data.git.sha;
+
+  // KPIs — per-attempts-class bests (single-attempt vs 3-attempt union)
+  document.getElementById('kpi-best-repl-union').textContent = fmt(data.stats.best_repl_union_mean ?? data.stats.best_repl_mean);
+  document.getElementById('kpi-best-repl-union-exp').textContent =
+    (data.stats.best_repl_union_exp || data.stats.best_repl_exp || '—');
+  document.getElementById('kpi-best-repl-single').textContent = fmt(data.stats.best_repl_single_mean);
+  document.getElementById('kpi-best-repl-single-exp').textContent = data.stats.best_repl_single_exp || '—';
+  document.getElementById('kpi-exp-count').textContent = data.stats.n_experiments;
+  document.getElementById('kpi-exp-repl').textContent = data.stats.n_with_replication + ' with n≥3';
+  const latestSub = data.submissions[data.submissions.length - 1];
+  if (latestSub) {
+    document.getElementById('kpi-lb').textContent = latestSub.lb || '—';
+    document.getElementById('kpi-rank').textContent = latestSub.rank || '—';
+  }
+
+  // Submissions
+  const subBody = document.getElementById('submissions-body');
+  subBody.innerHTML = data.submissions.map(s => `
+    <tr class="text-slate-200">
+      <td class="py-1 pr-2 font-semibold text-amber-400">${s.version}</td>
+      <td class="py-1 pr-2 truncate max-w-[10rem] sm:max-w-none">${s.exp}</td>
+      <td class="py-1 pr-2 text-right text-slate-300">${s.local_n_mean}</td>
+      <td class="py-1 pr-2 text-right font-semibold">${s.lb}</td>
+      <td class="py-1 pr-2 text-right text-slate-400">${s.rank}</td>
+      <td class="py-1 text-right ${(s.gap||'').startsWith('−') ? 'text-rose-400' : 'text-slate-300'}">${s.gap}</td>
+    </tr>
+  `).join('') || '<tr><td colspan=6 class="py-2 text-center text-slate-500">no submissions yet</td></tr>';
+
+  // Top experiments by repl mean
+  const top = [...data.experiments]
+    .filter(e => e.repl_mean !== null && e.repl_mean !== undefined)
+    .sort((a, b) => b.repl_mean - a.repl_mean)
+    .slice(0, 8);
+  document.getElementById('top-exp-body').innerHTML = top.map((e, i) => `
+    <tr class="text-slate-200">
+      <td class="py-1 pr-2 truncate max-w-[12rem] sm:max-w-none">
+        ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '<span class="text-slate-500">'+(i+1)+'</span>'}
+        ${e.name}
+      </td>
+      <td class="py-1 pr-2 text-right text-slate-400">${e.repl_n}</td>
+      <td class="py-1 pr-2 text-right font-semibold ${i===0?'text-emerald-400':''}">${fmt(e.repl_mean)}</td>
+      <td class="py-1 pr-2 text-right text-slate-400">±${fmt(e.repl_std)}</td>
+      <td class="py-1 text-right text-slate-400">${fmt(e.repl_missing_mean, 1)}</td>
+    </tr>
+  `).join('');
+
+  // Recent experiments (by exp_num)
+  const recent = [...data.experiments].sort((a, b) => b.exp_num - a.exp_num).slice(0, 15);
+  document.getElementById('recent-exp-body').innerHTML = recent.map(e => `
+    <tr class="text-slate-200">
+      <td class="py-1 pr-2 truncate max-w-[12rem] sm:max-w-none">${e.name}</td>
+      <td class="py-1 pr-2 text-right text-slate-400">${e.n_runs}</td>
+      <td class="py-1 pr-2 text-right">${fmt(e.single_run_score)}</td>
+      <td class="py-1 pr-2 text-right ${e.repl_mean ? 'font-semibold' : 'text-slate-500'}">${fmt(e.repl_mean)}</td>
+      <td class="py-1 text-right text-slate-400">${e.single_run_missing ?? '—'}</td>
+    </tr>
+  `).join('');
+}
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

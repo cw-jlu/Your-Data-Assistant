@@ -1,0 +1,29 @@
+# Reduce build context size — Docker build wastes time and bytes on
+# anything copied that we don't actually need in the image.
+.git
+.gitignore
+.github
+.venv
+.venv-*
+.python-version
+.codex
+.pytest_cache
+.ruff_cache
+.mypy_cache
+__pycache__
+*.py[cod]
+*$py.class
+
+artifacts
+data
+docs
+evaluation
+submissions
+tests
+
+# pyproject.toml references README.md as readme; keep it but drop translated/aux variants.
+README*.md
+!README.md
+CLAUDE.md
+*.tar
+*.tar.gz

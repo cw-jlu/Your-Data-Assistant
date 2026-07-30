@@ -1,0 +1,31 @@
+{
+  "durationMilliseconds": 2000,
+  "combinedPhrases": [
+    {
+      "channel": 0,
+      "text": "欄位 配置"
+    }
+  ],
+  "phrases": [
+    {
+      "channel": 0,
+      "offsetMilliseconds": 0,
+      "durationMilliseconds": 2000,
+      "text": "欄位 配置",
+      "locale": "zh-CN",
+      "confidence": 0.98,
+      "words": [
+        {
+          "text": "欄位",
+          "offsetMilliseconds": 0,
+          "durationMilliseconds": 800
+        },
+        {
+          "text": "配置",
+          "offsetMilliseconds": 900,
+          "durationMilliseconds": 800
+        }
+      ]
+    }
+  ]
+}

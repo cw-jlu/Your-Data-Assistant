@@ -1,0 +1,8 @@
+{
+  "markdown-pdf.styles": [
+    ".vscode/markdown-pdf.css"
+  ],
+  "markdown-pdf.printBackground": true,
+  "markdown-pdf.highlight": true,
+  "markdown-pdf.highlightStyle": "github.css"
+}

@@ -1,0 +1,116 @@
+# Cloud-side enforcement of the local quality gates declared in
+# docs/development.md, plus competition-specific guards:
+#   * §3.2 image size cap (10GB hard, 9GB warn).
+#   * Secret-leak protection on configs/*.local.yaml (the gitignore is the
+#     only existing barrier; this is the second wall).
+#
+# Triggers:
+#   * pull_request — every PR (target-branch agnostic so feature-to-feature
+#     PRs are also covered).
+#   * push to main — catches direct commits and runs once after merge.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: ruff + pyright + pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          # cache-dependency-glob ties the cache key to uv.lock — when the
+          # lock changes the cache invalidates; otherwise it's reused.
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.11
+        # Matches docker/Dockerfile and pyproject.toml requires-python.
+        run: uv python install 3.11
+
+      - name: Sync dev extras
+        # --locked: fail if uv.lock would change vs pyproject.toml.
+        run: uv sync --locked --extra dev
+
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pyright
+
+      - name: pytest
+        # pytest config in pyproject.toml already enforces
+        # --cov-fail-under=65 and --basetemp=.pytest_tmp.
+        run: uv run pytest
+
+  image:
+    name: docker build + size
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: gates
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build submission image (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: dabench:ci
+          # GHA cache ~halves the build on re-runs without needing a registry.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Enforce §3.2 size cap (10GB hard, 9GB warn)
+        # Mirrors scripts/pre_submit_check.sh:55-59 / scripts/eval_local.sh:46-49.
+        # Image bytes ≠ tar.gz bytes (gzip cuts ~30-60% on Python images), but
+        # an image > 9GB is a strong tell the archive will brush the cap.
+        run: |
+          BYTES=$(docker image inspect dabench:ci --format='{{.Size}}')
+          GB=$(awk -v b="$BYTES" 'BEGIN{printf "%.2f", b/1024/1024/1024}')
+          echo "image_bytes=${BYTES} (${GB}GB)"
+          if awk -v b="$BYTES" 'BEGIN{exit !(b > 10*1024*1024*1024)}'; then
+            echo "::error::image > 10GB hard cap (§3.2)"
+            exit 1
+          fi
+          if awk -v b="$BYTES" 'BEGIN{exit !(b > 9*1024*1024*1024)}'; then
+            echo "::warning::image > 9GB; tar.gz size risk"
+          fi
+
+  secrets:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 0 = full history; gitleaks scans every commit, not just the diff.
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # If this repo lives under a GitHub org, set the GITLEAKS_LICENSE
+          # secret in repo settings (https://gitleaks.io/products.html).
+          # Personal-account repos can omit it.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}

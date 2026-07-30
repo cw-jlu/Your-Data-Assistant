@@ -1,0 +1,517 @@
+name: issue-impl
+description: GitHub Issue番号を入力として受け取り、Issue内容を取得・分析して実装を行うワークフロー（計画 → 設計レビュー → テスト作成 → 実装 → AIレビュー → レビュー → 完了）
+workflow_config:
+  provider_options:
+    codex:
+      network_access: true
+    opencode:
+      network_access: true
+knowledge:
+  issue-planning: ../facets/knowledge/issue-planning.md
+  project-frontend-stack: ../facets/knowledge/project-frontend-stack.md
+  project-backend-stack: ../facets/knowledge/project-backend-stack.md
+max_steps: 100
+initial_step: plan
+loop_monitors:
+  - cycle:
+      - ai_review
+      - ai_fix
+    threshold: 3
+    judge:
+      persona: supervisor
+      instruction: |
+        ai_review と ai_fix のループが {cycle_count} 回繰り返されました。
+
+        各サイクルのレポートを確認し、このループが健全（進捗がある）か、
+        非生産的（同じ問題を繰り返している）かを判断してください。
+
+        **参照するレポート:**
+        - AIレビュー結果: {report:ai-review.md}
+
+        **判断基準:**
+        - 各サイクルで新しい問題が発見・修正されているか
+        - 同じ指摘が繰り返されていないか
+        - 修正が実際に反映されているか
+      rules:
+        - condition: 健全（進捗あり）
+          next: ai_review
+        - condition: 非生産的（改善なし）
+          next: reviewers
+  - cycle:
+      - reviewers
+      - fix
+    threshold: 3
+    judge:
+      persona: supervisor
+      instruction: loop-monitor-reviewers-fix
+      rules:
+        - condition: 健全（指摘数が減少、修正が反映されている）
+          next: reviewers
+        - condition: 非生産的（同じ指摘が繰り返される）
+          next: ABORT
+  - cycle:
+      - ci_check
+      - fix
+    threshold: 3
+    judge:
+      persona: supervisor
+      instruction: |
+        ci_check と fix のループが {cycle_count} 回繰り返されました。
+
+        各サイクルのレポートを確認し、このループが健全（進捗がある）か、
+        非生産的（同じCI失敗を繰り返している）かを判断してください。
+
+        **参照するレポート:**
+        - CIチェック結果: {report:ci-check.md}
+
+        **判断基準:**
+        - 失敗しているコマンドや件数が減少しているか
+        - 同じエラーだけが繰り返されていないか
+        - 修正内容が実際にCI結果へ反映されているか
+      rules:
+        - condition: 健全（進捗あり）
+          next: ci_check
+        - condition: 非生産的（改善なし）
+          next: ABORT
+steps:
+  - name: plan
+    edit: false
+    persona: planner
+    knowledge:
+      - architecture
+      - research-comparative
+      - issue-planning
+      - project-frontend-stack
+      - project-backend-stack
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+          - WebSearch
+          - WebFetch
+    instruction: |
+      `context/task/order.md` を一次ソースとして要件を分析し、設計を含めた実装方針を立ててください。
+
+      **注意:** Previous Responseがある場合は差し戻しのため、
+      その内容を踏まえて計画を見直してください（replan）。
+
+      **やること:**
+      1. **要件の一次ソース確認（必須・最初に実行）**
+         - `context/task/order.md` を読み、タスクの要件・リスク・修正案・ラベルを確認する
+         - `order.md` の内容をこのステップの一次ソースとして扱う
+         - GitHub Issue の追加確認が必要な場合のみ補助情報として参照してよいが、取得不能でも `order.md` があれば継続してよい
+      1.5. **workflow 選択の確認**
+         - `.takt/workflows/issue-routing.yaml` を参照し、対象 issue に適用する workflow を確認する
+         - `label:error` が付いた issue、または `#78` 由来の error issue が `#108` の `takt add` 経由で登録された issue なら、この workflow を続行せず `error-fix-default` へ切り替える
+         - 上記に該当する場合は feature 実装フローとして扱わない
+      2. **要件の整理**
+         - `order.md` の内容から実装すべき要件を抽出する
+         - 要件ごとに「変更要/不要」を判定する。「不要」の場合は現行コードの該当箇所（ファイル:行）を根拠として示すこと。根拠なしの「既に正しい」は禁止
+      3. コードベースを調査して不明点を解決し、影響範囲を特定する
+      4. ファイル構成・設計パターンを決定する（必要な場合）
+      5. 実装アプローチを決める
+         - 実装アプローチがナレッジ・ポリシーの制約に違反しないか照合する
+         - 技術選定が必要な場合は、既存方式の継続を含む複数案を比較し、採用理由と不採用理由を示す
+         - 新規依存・新規サービス・新規基盤設定を追加する場合は、必要性、代替案、運用コスト、ロールバック観点を明記する
+      6. Coder向けの実装ガイドラインに以下を含めること:
+         - 参照すべき既存実装パターン（ファイル:行）。同種の処理が既にある場合は必ず示す
+         - 変更の影響範囲。特に新しいパラメータを追加する場合、配線が必要な全箇所を列挙する
+         - このタスクで特に注意すべきアンチパターン（該当するものがあれば）
+
+      **小規模タスクの判断基準:**
+      - 1-2ファイルの変更のみ
+      - 設計判断が不要
+      - 技術選定が不要
+
+      小規模タスクの場合は設計セクションを省略してください。
+    rules:
+      - condition: 対象 issue が `label:error` を持つエラー調査・修正案件
+        next: ABORT
+        appendix: |
+          この issue は `error-fix-default` を使ってください。
+          - 参照: `.takt/workflows/issue-routing.yaml`
+          - 想定ソース: `#78` で起票された error issue
+          - 想定流入: `#108` の `takt add`
+      - condition: 要件が明確で実装可能
+        next: arch_review
+      - condition: ユーザーが質問をしている（実装タスクではない）
+        next: COMPLETE
+      - condition: 要件が不明確、情報不足
+        next: ABORT
+        appendix: |
+          確認事項:
+          - {質問1}
+          - {質問2}
+    output_contracts:
+      report:
+        - name: plan.md
+          format: plan
+  - name: arch_review
+    edit: false
+    provider: codex
+    model: gpt-5.5
+    persona: architecture-reviewer
+    policy: review
+    knowledge:
+      - architecture
+      - issue-planning
+      - project-frontend-stack
+      - project-backend-stack
+    provider_options:
+      codex:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - WebSearch
+          - WebFetch
+    instruction: |
+      plan ステップの実装方針を、実装前の設計レビューとして確認してください。
+
+      **レビュー対象:**
+      - plan ステップの出力 {report:plan.md}
+      - GitHub Issueの要件整理
+
+      **目的:**
+      - 実装前に設計上のズレや影響範囲の見落としを検出し、出戻りを減らす
+      - 小規模タスクは過剰レビューせず、妥当なら速やかに通す
+
+      **重点確認事項:**
+      - Issue要件を満たす方針になっているか
+      - 変更対象と影響範囲の見積もりが妥当か
+      - 既存実装パターンとの整合性があるか
+      - 技術選定や依存追加が必要最小限で、比較と採用理由が明示されているか
+      - 不要に大きい変更や、後戻りしやすい設計リスクがないか
+
+      **小規模タスクの扱い:**
+      - 1-2ファイルの変更のみ
+      - 設計判断が不要
+      - 技術選定が不要
+      上記に該当する場合、重大な懸念がなければ approved としてください。
+
+      **レビュー方針:**
+      - 実装前レビューなので、命名や細かな実装詳細ではなく設計とスコープに集中する
+      - 修正指示が必要な場合は、plan に戻して見直すべき点を具体的に示す
+    rules:
+      - condition: approved
+        next: write_tests
+      - condition: needs_fix
+        next: plan
+    output_contracts:
+      report:
+        - name: architect-plan-review.md
+          format: architecture-review
+  - name: write_tests
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    knowledge:
+      - architecture
+      - unit-testing
+      - e2e-testing
+      - project-frontend-stack
+      - project-backend-stack
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: write-tests-first
+    rules:
+      - condition: テスト作成が完了した
+        next: implement
+      - condition: テスト対象が未実装のためテスト作成をスキップする
+        next: implement
+      - condition: テスト作成を進行できない
+        next: ABORT
+      - condition: ユーザーへの確認事項があるためユーザー入力が必要
+        next: write_tests
+        requires_user_input: true
+        interactive_only: true
+    output_contracts:
+      report:
+        - name: test-scope.md
+          format: coder-scope
+        - name: test-decisions.md
+          format: coder-decisions
+  - name: implement
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    session: refresh
+    knowledge:
+      - architecture
+      - project-frontend-stack
+      - project-backend-stack
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: implement-after-tests
+    rules:
+      - condition: 実装完了
+        next: ci_check
+      - condition: 実装未着手（レポートのみ）
+        next: ci_check
+      - condition: 判断できない、情報不足
+        next: ci_check
+      - condition: ユーザー入力が必要
+        next: implement
+        requires_user_input: true
+        interactive_only: true
+    output_contracts:
+      report:
+        - name: coder-scope.md
+          format: coder-scope
+        - name: coder-decisions.md
+          format: coder-decisions
+  - name: ci_check
+    edit: false
+    persona: supervisor
+    policy:
+      - review
+      - qa
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Bash
+          - WebSearch
+          - WebFetch
+    instruction: |
+      実装または修正の直後に、GitHub ActionsのCIと同等のチェックをローカルで実行してください。
+
+      **目的:**
+      - 実装完了直後にCI相当の失敗を早期検出する
+      - fix後に再実行して、CIが通るまでループする
+
+      **実行方針:**
+      1. 変更ファイルを確認し、影響がある領域ごとに必要なCI相当コマンドを実行する
+      2. 変更がある領域ごとに、その領域で必要な format / lint / test を省略せず実行する
+      3. 可能ならGitHub Actionsに合わせたコマンドを優先し、コマンド文字列を変形しない
+      4. 成功/失敗の要約だけでなく、ci_check が照合できる実行証跡を Report Directory に残す
+      5. 失敗した場合は、どのコマンドが何で失敗したかを具体的に記録する
+      6. 成功した場合も、実行した正確なコマンド、実行ディレクトリ、結果を記録する
+
+      **Backend変更時に実行するCI相当チェック:**
+      - `cd backend && uv run ruff check . --ignore B904`
+      - `cd backend && uv run ruff format --check .`
+      - `cd backend && uv run pytest`
+
+      **Frontend変更時に実行するCI相当チェック:**
+      - `cd frontend && npm run lint`
+      - `cd frontend && npm run format:check`
+      - `cd frontend && npm test`
+
+      **判定ルール:**
+      - 必要なCI相当チェックがすべて成功したら成功
+      - 1つでも失敗したら失敗
+      - 実装変更がない場合でも、直前ステップでコードに触れているなら再確認を優先する
+      - 「成功した」と記載する場合は、変更がある各領域について Report Directory 上に format / lint / test の実行証跡がそろっていること
+    rules:
+      - condition: 必要なCI相当チェックがすべて成功した
+        next: ai_review
+      - condition: CI相当チェックに失敗した
+        next: fix
+      - condition: 判断できない、情報不足
+        next: fix
+    output_contracts:
+      report:
+        - name: ci-check.md
+          format: summary
+  - name: ai_review
+    edit: false
+    provider: codex
+    model: gpt-5.5
+    persona: ai-antipattern-reviewer
+    policy:
+      - review
+      - ai-antipattern
+    provider_options:
+      codex:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - WebSearch
+          - WebFetch
+    instruction: ai-review
+    rules:
+      - condition: AI特有の問題なし
+        next: reviewers
+      - condition: AI特有の問題あり
+        next: ai_fix
+    output_contracts:
+      report:
+        - name: ai-review.md
+          format: ai-review
+  - name: ai_fix
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    session: refresh
+    knowledge:
+      - architecture
+      - project-frontend-stack
+      - project-backend-stack
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: ai-fix
+    pass_previous_response: false
+    rules:
+      - condition: AI Reviewerの指摘に対する修正が完了した
+        next: ci_check
+      - condition: 修正不要（指摘対象ファイル/仕様の確認済み）
+        next: reviewers
+      - condition: 修正を進行できない
+        next: reviewers
+  - name: reviewers
+    parallel:
+      - name: qa-review
+        edit: false
+        provider: codex
+        model: gpt-5.5
+        persona: qa-reviewer
+        policy:
+          - review
+          - qa
+        provider_options:
+          codex:
+            allowed_tools:
+              - Read
+              - Glob
+              - Grep
+              - WebSearch
+              - WebFetch
+        instruction: review-qa
+        rules:
+          - condition: approved
+          - condition: needs_fix
+        output_contracts:
+          report:
+            - name: qa-review.md
+              format: qa-review
+      - name: supervise
+        edit: false
+        provider: codex
+        model: gpt-5.5
+        persona: supervisor
+        policy: review
+        provider_options:
+          codex:
+            allowed_tools:
+              - Read
+              - Glob
+              - Grep
+              - Bash
+              - WebSearch
+              - WebFetch
+        instruction: supervise
+        rules:
+          - condition: すべて問題なし
+          - condition: 要求未達成、テスト失敗、ビルドエラー
+        output_contracts:
+          report:
+            - name: supervisor-validation.md
+              format: supervisor-validation
+            - name: summary.md
+              format: summary
+              use_judge: false
+    rules:
+      - condition: all("approved", "すべて問題なし")
+        next: COMPLETE
+      - condition: any("needs_fix", "要求未達成、テスト失敗、ビルドエラー")
+        next: fix
+  - name: fix
+    edit: true
+    persona: coder
+    policy:
+      - coding
+      - testing
+    knowledge:
+      - architecture
+      - project-frontend-stack
+      - project-backend-stack
+    provider_options:
+      claude:
+        allowed_tools:
+          - Read
+          - Glob
+          - Grep
+          - Edit
+          - Write
+          - Bash
+          - WebSearch
+          - WebFetch
+    required_permission_mode: edit
+    instruction: |
+      ci_check または review で見つかった問題を修正してください。
+
+      今回の fix は「直すこと」だけでは不十分です。変更がある各領域で、ci_check が期待する
+      format / lint / test を期待する形で実行し、その成功証跡を Report Directory に残すところまで含めて完了です。
+
+      **必須要件:**
+      - 変更がある各領域で format / lint / test をすべて実行すること
+      - 各コマンドは省略せず、実行した正確なコマンド名をレポートに残すこと
+      - 成功/失敗の要約だけでなく、ci_check が照合できる実行証跡を Report Directory に残すこと
+      - 1つでも失敗したら「成功した」と書かず、失敗コマンド名と失敗内容を明記すること
+      - 特に backend では、前回差し戻しで指摘されたコマンド不一致を再発させないこと
+
+      **backend に変更がある場合に必ず実行・記録するコマンド:**
+      - `cd backend && uv run ruff format --check .`
+      - `cd backend && uv run ruff check . --ignore B904`
+      - `cd backend && uv run pytest`
+
+      **frontend に変更がある場合に必ず実行・記録するコマンド:**
+      - `cd frontend && npm run lint`
+      - `cd frontend && npm run format:check`
+      - `cd frontend && npm test`
+
+      **レポート要件:**
+      - Report Directory に、各コマンドごとの実行ディレクトリ、正確なコマンド、成功/失敗、一次証跡を残す
+      - 変更がない領域までは強制しないが、変更がある領域では CI 相当コマンドの実行と証跡保存を省略しない
+      - 自己申告の成功ではなく、ci_check がレポートだけで成功判定できる粒度で残す
+
+      短く言うと、fix は「修正役」ではなく「変更がある領域の CI 相当を全部通して、その証明を残す役」として振る舞ってください。
+    pass_previous_response: false
+    rules:
+      - condition: 修正完了
+        next: ci_check
+      - condition: 判断できない、情報不足
+        next: plan

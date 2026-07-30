@@ -1,0 +1,76 @@
+# Keep build context small + prevent accidental leakage of dev-only files
+# (especially credentials and our-side endpoints) into the submission image.
+
+# --- credentials & dev environment ----------------------------------------
+.env
+.env.*
+.envrc
+*.pem
+*.key
+.config/
+
+# --- VCS & local tooling --------------------------------------------------
+.git
+.gitignore
+.github/
+.gitattributes
+.claude/
+
+# --- artifacts & local-only data ------------------------------------------
+artifacts/
+data/
+.takt/
+# Whitelist domain reference (= per-DB schema docs derived from public sources).
+!data/
+!data/external/
+!data/external/domain_db/
+!data/external/domain_db/**
+# NOTE: data/external/bull_gold_columns (same-source BULL/EHRSQL gold-SQL corpus) was
+# briefly whitelisted for the v10 ICL few-shot and is deliberately EXCLUDED again —
+# bundling homologous gold answers violates the competition rules (see v11 note in
+# submission/Dockerfile). Keep it out of every future image.
+# exp_173 (withdrawn ICL experiment) stays out of the image too: its icl_fewshot.py
+# is unused dead code that would only invite audit questions.
+src/experiments/exp_173_groupby_dim/
+
+# --- python caches & venvs ------------------------------------------------
+.venv/
+.python-version
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- editor/IDE -----------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS junk --------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# --- markdown notes (keep README.md, drop the rest) -----------------------
+EXPERIMENTS.md
+BACKLOG.md
+PRIORITIES.md
+LEADERBOARD.md
+DASHBOARD.md
+docs/
+site/
+
+# --- previous build artifacts --------------------------------------------
+*.tar.gz
+*.tar
+team*_v*.tar.gz
+kobushi_v*.tar.gz
+
+# --- test files we don't need at runtime ---------------------------------
+tests/

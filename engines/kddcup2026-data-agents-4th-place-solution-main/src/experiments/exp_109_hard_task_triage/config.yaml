@@ -1,0 +1,14 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  temperature: 0.6
+
+run:
+  # Single-attempt class / Hard-task triage: workers=10 × 1 attempt = 10 streams
+  # (exp_086 was workers=4 × 3 attempts = 12 streams; this stays within 13-stream limit)
+  max_workers: 10
+  task_timeout_seconds: 900

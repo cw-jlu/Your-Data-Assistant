@@ -1,0 +1,94 @@
+dataset:
+  root_path: data/input
+
+agent:
+  model: qwen3.5-35b-a3b
+  api_base: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api_key: ""
+  api_key_env: QwenAPI
+  max_steps: 48
+  temperature: 0.2
+  model_request_timeout_seconds: 1800
+  max_tokens: 16000
+  enable_data_inspector: true
+  enable_answer_validator: true
+  validation_retry_limit: 2
+  enable_process_validator: true
+  enable_ambiguity_analysis: false
+  strip_reasoning_history: false
+  reasoning_history_limit: 10
+  prompt_version: 3
+  compress_used_image_messages: true
+  compressed_image_note_chars: 600
+
+data_inspector:
+  sample_budget:
+    catalog_top_distinct_values: 5
+    max_doc_tokens: 1000
+  semantic_views:
+    enabled: true
+    min_confidence: 0.95
+    min_distinct_match_ratio: 0.90
+    strict_distinct_match_ratio: 0.95
+    min_target_uniqueness_ratio: 1.0
+    max_views: 30
+    max_dimension_fields_per_view: 12
+    max_dimensions_per_view: 2
+    min_payload_fields: 1
+    allow_one_to_one_enrichment: true
+
+video_preprocessing:
+  enabled: true
+  sample_fps: 2.0
+  diff_threshold: 0.010
+  pixel_delta: 25
+  min_stable_duration: 1.0
+  resize_width: 320
+  jpg_quality: 95
+  max_attached_frames: 32
+  asr_model: medium
+  asr_device: cpu
+  asr_compute_type: int8
+  asr_cpu_threads: 4
+  asr_num_workers: 8
+  asr_stage: dynamic-plus-ui
+  asr_language_detector_model: tiny
+  asr_language_threshold: 0.5
+  asr_prompt_min_terms: 1
+  asr_prompt_max_terms: 10
+  asr_ui_terms: [字段, 批次, 配置, 加载, 面板, 看板, 卡片, 队列, 筛选, 核对, 列, 路径]
+
+process_validator:
+  checkpoint_model_interval: 12
+  retry_limit: 2
+  recent_step_limit: 200
+  evidence_max_items: 100
+  evidence_max_str_tokens: 10000
+  evidence_max_list_items: 200
+
+tool:
+  max_output_tokens: 10000
+  max_list_items: 100
+  structured_doc:
+    min_chunk_lines: 30
+    max_chunk_lines: 40
+    max_selected_lines_for_llm_extraction: 500
+    default_max_model_calls: 20
+    hard_max_model_calls: 20
+    inspect_doc_structure_max_model_calls: 3
+    llm:
+      temperature: 0.0
+      top_p: 1.0
+      repetition_penalty: 1.0
+
+run:
+  output_dir: artifacts/runs
+  run_id:
+  max_workers: 6
+  extract_structured_doc_max_workers: 2
+  task_timeout_seconds: 1200
+  extract_structured_doc_timeout_bonus_seconds: 600
+  # task_ids:
+  #   - task_47
+    # - task_41
+    # - task_52

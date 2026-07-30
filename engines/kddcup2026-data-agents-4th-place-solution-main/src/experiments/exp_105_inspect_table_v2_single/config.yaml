@@ -1,0 +1,14 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  temperature: 0.0
+
+run:
+  # exp_105 [tool:discovery] single-attempt: workers=10 outer × 1 inner
+  # = 10 concurrent vLLM streams (saturation point ~13-15). Bench ~30 min.
+  max_workers: 10
+  task_timeout_seconds: 900

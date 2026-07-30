@@ -1,0 +1,249 @@
+<mxfile host="app.diagrams.net" modified="2026-04-08T00:00:00.000Z" agent="TAKT Piece Builder" version="24.0.0" type="device">
+  <diagram id="issue-impl-workflow" name="issue-impl workflow">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Start -->
+        <mxCell id="start" value="Issue番号入力" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="30" width="160" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- plan -->
+        <mxCell id="plan" value="&lt;b&gt;plan&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;planner / architecture&lt;br&gt;gh issue view → 要件分析 → 実装計画&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="120" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- arch_review -->
+        <mxCell id="arch_review" value="&lt;b&gt;arch_review&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;architecture-reviewer&lt;br&gt;実装前の設計レビュー&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="240" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- write_tests -->
+        <mxCell id="write_tests" value="&lt;b&gt;write_tests&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;coder / coding+testing&lt;br&gt;TDD: テスト先行作成&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="360" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- implement -->
+        <mxCell id="implement" value="&lt;b&gt;implement&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;coder / coding+testing&lt;br&gt;テストが通るように実装&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="480" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ci_check -->
+        <mxCell id="ci_check" value="&lt;b&gt;ci_check&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;supervisor / review+qa&lt;br&gt;lint・format・test を実行&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="600" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ai_review -->
+        <mxCell id="ai_review" value="&lt;b&gt;ai_review&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;ai-antipattern-reviewer&lt;br&gt;AIアンチパターンレビュー&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="720" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ai_fix -->
+        <mxCell id="ai_fix" value="&lt;b&gt;ai_fix&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;coder / coding+testing&lt;br&gt;AI指摘の修正&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="640" y="720" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- reviewers (parallel container) -->
+        <mxCell id="reviewers_container" value="&lt;b&gt;reviewers&lt;/b&gt; (並列実行)" style="swimlane;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;rounded=1;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="220" y="850" width="400" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- qa-review -->
+        <mxCell id="qa_review" value="&lt;b&gt;qa-review&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;qa-reviewer&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;verticalAlign=middle;" vertex="1" parent="reviewers_container">
+          <mxGeometry x="25" y="45" width="145" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- supervise -->
+        <mxCell id="supervise_sub" value="&lt;b&gt;supervise&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px&quot;&gt;supervisor&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;verticalAlign=middle;" vertex="1" parent="reviewers_container">
+          <mxGeometry x="230" y="45" width="145" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- fix -->
+        <mxCell id="fix" value="&lt;b&gt;fix&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;coder / coding+testing&lt;br&gt;レビュー/CI指摘の修正&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="690" y="880" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- COMPLETE -->
+        <mxCell id="complete" value="COMPLETE" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="1040" width="160" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ABORT -->
+        <mxCell id="abort" value="ABORT" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="150" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Loop Monitor Label: ai_review <-> ai_fix -->
+        <mxCell id="loop_label_ai" value="&lt;font style=&quot;font-size:9px&quot;&gt;Loop Monitor&lt;br&gt;ai_review ↔ ai_fix&lt;br&gt;threshold: 3&lt;br&gt;非生産的 → reviewers&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="700" y="795" width="125" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Loop Monitor Label: ci_check <-> fix -->
+        <mxCell id="loop_label_fix" value="&lt;font style=&quot;font-size:9px&quot;&gt;Loop Monitor&lt;br&gt;ci_check ↔ fix&lt;br&gt;threshold: 3&lt;br&gt;非生産的 → ABORT&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="820" y="985" width="125" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Loop Monitor Label: reviewers <-> fix -->
+        <mxCell id="loop_label_reviewers_fix" value="&lt;font style=&quot;font-size:9px&quot;&gt;Loop Monitor&lt;br&gt;reviewers ↔ fix&lt;br&gt;threshold: 3&lt;br&gt;非生産的 → ABORT&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;fillColor=none;strokeColor=none;fontColor=#999999;" vertex="1" parent="1">
+          <mxGeometry x="560" y="985" width="125" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Edges ===== -->
+
+        <!-- start -> plan -->
+        <mxCell id="e_start_plan" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;" edge="1" source="start" target="plan" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- plan -> arch_review -->
+        <mxCell id="e_plan_write" value="要件が明確" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=10;fontColor=#333333;labelBackgroundColor=#FFFFFF;" edge="1" source="plan" target="arch_review" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- arch_review -> write_tests -->
+        <mxCell id="e_arch_write" value="approved" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=10;fontColor=#333333;labelBackgroundColor=#FFFFFF;" edge="1" source="arch_review" target="write_tests" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- arch_review -> plan -->
+        <mxCell id="e_arch_plan" value="needs_fix" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC6600;fontSize=10;fontColor=#CC6600;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" source="arch_review" target="plan" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="590" y="275" />
+              <mxPoint x="590" y="155" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- plan -> ABORT -->
+        <mxCell id="e_plan_abort" value="要件不明確" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC0000;fontSize=10;fontColor=#CC0000;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" source="plan" target="abort" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="230" y="155" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- write_tests -> implement -->
+        <mxCell id="e_write_impl" value="テスト完了" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=10;fontColor=#333333;labelBackgroundColor=#FFFFFF;" edge="1" source="write_tests" target="implement" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- implement -> ci_check -->
+        <mxCell id="e_impl_ci" value="実装完了" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=10;fontColor=#333333;labelBackgroundColor=#FFFFFF;" edge="1" source="implement" target="ci_check" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ci_check -> ai_review -->
+        <mxCell id="e_ci_air" value="CI成功" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=10;fontColor=#333333;labelBackgroundColor=#FFFFFF;" edge="1" source="ci_check" target="ai_review" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ci_check -> fix -->
+        <mxCell id="e_ci_fix" value="CI失敗" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC6600;fontSize=10;fontColor=#CC6600;labelBackgroundColor=#FFFFFF;" edge="1" source="ci_check" target="fix" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="570" y="635" />
+              <mxPoint x="570" y="915" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ai_review -> reviewers -->
+        <mxCell id="e_air_reviewers" value="AI問題なし" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=10;fontColor=#333333;labelBackgroundColor=#FFFFFF;" edge="1" source="ai_review" target="reviewers_container" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="830" />
+              <mxPoint x="420" y="830" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ai_review -> ai_fix -->
+        <mxCell id="e_air_aifix" value="AI問題あり" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC6600;fontSize=10;fontColor=#CC6600;labelBackgroundColor=#FFFFFF;" edge="1" source="ai_review" target="ai_fix" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ai_fix -> ci_check -->
+        <mxCell id="e_aifix_ci" value="修正完了 → CI再実行" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC6600;fontSize=10;fontColor=#CC6600;labelBackgroundColor=#FFFFFF;" edge="1" source="ai_fix" target="ci_check" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="920" y="755" />
+              <mxPoint x="920" y="695" />
+              <mxPoint x="570" y="695" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ai_fix -> reviewers (skip) -->
+        <mxCell id="e_aifix_reviewers" value="修正不要/&#xa;進行不可" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;fontSize=9;fontColor=#999999;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" source="ai_fix" target="reviewers_container" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="750" y="850" />
+              <mxPoint x="620" y="850" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- reviewers -> COMPLETE -->
+        <mxCell id="e_reviewers_complete" value="all approved" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#009900;fontSize=10;fontColor=#009900;fontStyle=1;labelBackgroundColor=#FFFFFF;" edge="1" source="reviewers_container" target="complete" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- reviewers -> fix -->
+        <mxCell id="e_reviewers_fix" value="any needs_fix" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC6600;fontSize=10;fontColor=#CC6600;labelBackgroundColor=#FFFFFF;" edge="1" source="reviewers_container" target="fix" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="650" y="915" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- fix -> ci_check (loop) -->
+        <mxCell id="e_fix_ci" value="修正完了" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#CC6600;fontSize=10;fontColor=#CC6600;labelBackgroundColor=#FFFFFF;" edge="1" source="fix" target="ci_check" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="915" />
+              <mxPoint x="930" y="570" />
+              <mxPoint x="420" y="570" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- fix -> plan (fallback) -->
+        <mxCell id="e_fix_plan" value="情報不足" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;fontSize=9;fontColor=#999999;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" source="fix" target="plan" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="915" />
+              <mxPoint x="1000" y="100" />
+              <mxPoint x="420" y="100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend_box" value="&lt;b&gt;凡例&lt;/b&gt;" style="swimlane;startSize=25;fillColor=#F5F5F5;strokeColor=#CCCCCC;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="30" width="200" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_blue" value="実装系" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="legend_box">
+          <mxGeometry x="15" y="35" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_yellow" value="レビュー系" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="legend_box">
+          <mxGeometry x="105" y="35" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_green" value="開始/終了" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="legend_box">
+          <mxGeometry x="15" y="75" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_red" value="並列実行" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="legend_box">
+          <mxGeometry x="105" y="75" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_loop" value="─── 正常遷移&#xa;- - - フォールバック&#xa;━━ ループ" style="text;html=0;align=left;verticalAlign=top;fillColor=none;strokeColor=none;fontSize=10;fontColor=#666666;" vertex="1" parent="legend_box">
+          <mxGeometry x="15" y="120" width="170" height="50" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

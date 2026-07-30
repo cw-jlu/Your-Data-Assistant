@@ -1,0 +1,51 @@
+
+================ STEP 1 ================
+Source: None | Type: None
+
+================ STEP 2 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: read_doc
+  Args: {"path": "video/briefing_timeline.md"}
+
+================ STEP 3 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: read_doc
+  Args: {"path": "video/briefing_timeline.md"}
+
+================ STEP 4 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE AdvanceDate LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 5 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE AdvanceDate LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 6 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE CAST(AdvanceDate AS TEXT) LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 7 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: execute_probe_query
+  Args: {"queries": ["SELECT ChiName, AdvanceDate, IssuePurpose FROM lc_ashareseasonednewissue WHERE CAST(AdvanceDate AS TEXT) LIKE '2020%' ORDER BY AdvanceDate"]}
+
+================ STEP 8 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: answer
+  Args: {"columns": ["公司名称", "增发目的"], "rows": [["海思科医药集团股份有限公司", "For China Phase III clinical trial and marketing authorization of HSK-7653, a long-acting oral antihyperglycemic drug, etc."], ["深圳丹邦科技股份有限公司", "For industrialization of quantum carbon compound thick-film projects, etc."], ["南国置业股份有限公司", "Acquisition of 100% equity interest in PowerChina Real Estate"], ["吉峰三农科技服务股份有限公司", "For repaying interest-bearing liabilities"]]}
+
+================ STEP 9 ================
+Source: None | Type: None
+--- Tool Calls ---
+  Tool: answer
+  Args: {"columns": ["公司名称", "增发目的"], "rows": [["海思科医药集团股份有限公司", "For China Phase III clinical trial and marketing authorization of HSK-7653, a long-acting oral antihyperglycemic drug, etc."], ["深圳丹邦科技股份有限公司", "For industrialization of quantum carbon compound thick-film projects, etc."], ["南国置业股份有限公司", "Acquisition of 100% equity interest in PowerChina Real Estate"], ["吉峰三农科技服务股份有限公司", "For repaying interest-bearing liabilities"]]}

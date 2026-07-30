@@ -1,0 +1,12 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  temperature: 0.0
+  context_summarize_threshold: 0.80
+
+run:
+  max_workers: 8
+  task_timeout_seconds: 600

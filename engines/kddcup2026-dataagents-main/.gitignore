@@ -1,0 +1,108 @@
+# ─── Python ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+.venv
+venv/
+env/
+*.egg-info/
+*.egg-info
+.eggs/
+dist/
+build/
+wheels/
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+
+# ─── IDE / Editors ──────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+*.sublime-project
+*.sublime-workspace
+
+# ─── OS ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
+*.lnk
+.ipynb_checkpoints/
+
+# ─── Secrets / Env ──────────────────────────────────
+# Never commit API keys or credentials
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+secrets.*
+credentials.*
+.secrets/
+.codex
+
+# ─── Competition data (size + potential copyright) ──
+# Phase 1 demo dataset is downloaded separately; do not redistribute
+data/
+!data/.gitkeep
+
+# ─── Runtime artifacts ──────────────────────────────
+artifacts/*
+!artifacts/.gitkeep
+logs/
+*.log
+trace.json
+prediction.csv
+summary.json
+# 测试用的 golden fixture 必须入库——它们是 byte-stability 回归基准，不是运行时产物
+!tests/fixtures/golden/trace.json
+!tests/fixtures/golden/prediction.csv
+!tests/fixtures/golden/summary.json
+evaluation/
+
+# ─── Local configs (only example config is tracked) ─
+configs/*
+!configs/react.example.yaml
+
+# ─── Docker images / archives ───────────────────────
+*.tar
+*.tar.gz
+*.zip
+*.7z
+
+# ─── Temporary vendor / research files ──────────────
+vendor/
+tmp/
+_tmp/
+scratch/
+
+# ─── Node / Frontend ────────────────────────────────
+node_modules/
+src/agents/dashboard/static/
+
+# ─── Claude / AI tools local state ──────────────────
+.claude/
+.cursor/
+src/agents/etl/schema_kb.db-shm
+src/agents/etl/schema_kb.db-wal
+etl_pipeline.html

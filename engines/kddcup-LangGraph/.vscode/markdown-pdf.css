@@ -1,0 +1,45 @@
+:root {
+  --md-inline-code-color: #a14a2a;
+  --md-inline-code-bg: #fff4ec;
+  --md-inline-code-border: #f0d8ca;
+  --md-code-block-bg: #f7fafc;
+  --md-code-block-border: #d9e2ec;
+  --md-code-text: #243447;
+}
+
+code {
+  font-family: "Cascadia Code", "JetBrains Mono", "Fira Code", "Consolas", monospace;
+}
+
+/* Inline code */
+:not(pre):not(.hljs) > code {
+  color: var(--md-inline-code-color) !important;
+  background: var(--md-inline-code-bg);
+  border: 1px solid var(--md-inline-code-border);
+  border-radius: 4px;
+  padding: 0.12em 0.38em;
+  font-size: 0.92em;
+  font-weight: 600;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Code blocks */
+pre,
+pre.hljs,
+pre:not(.hljs) {
+  background: var(--md-code-block-bg) !important;
+  border: 1px solid var(--md-code-block-border);
+  border-radius: 10px;
+  padding: 14px 16px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+pre code {
+  color: var(--md-code-text);
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  font-size: 0.95em;
+  font-weight: 400;
+}

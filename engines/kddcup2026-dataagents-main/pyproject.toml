@@ -1,0 +1,109 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kddcup2026-agents"
+version = "0.1.0"
+description = "ReAct-style data agents for KDD Cup 2026 heterogeneous data analysis"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "filelock>=3.13",
+    "huggingface-hub>=0.29.3",
+    "ijson>=3.3.0",
+    "numpy>=2.2.6",
+    "openai>=2.28.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.3",
+    "polars>=1.39.0",
+    "pyarrow>=23.0.1",
+    "pydantic>=2.10.6",
+    "pymupdf>=1.27.2.3",
+    "pyyaml>=6.0.2",
+    "rich>=13.9.4",
+    "sqlalchemy>=2.0.50",
+    "tokenizers>=0.21",
+    "typer>=0.15.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "fastapi>=0.100.0",
+    "pandas-stubs>=2.2.0",
+    "pre-commit>=3.7.0",
+    "pyright>=1.1.400",
+    "pytest>=8.3.5",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.11.0",
+    "uvicorn>=0.20.0",
+]
+[project.scripts]
+dabench = "agents.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agents"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = [
+    ".venv",
+    "artifacts",
+    "data",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle 错误
+    "W",    # pycodestyle 警告
+    "F",    # pyflakes（未使用变量/导入等）
+    "I",    # isort（import 排序）
+    "B",    # flake8-bugbear（常见陷阱）
+    "UP",   # pyupgrade（新语法糖）
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "PIE",  # flake8-pie
+    "RUF",  # ruff 专属规则
+]
+ignore = [
+    "E501",    # 行长由 formatter 负责，lint 不重复管
+    "B008",    # Typer/FastAPI 风格：函数默认值里调用 Option(...) 是合法模式
+    "RUF001",  # 中文注释/字符串里的全角标点（，（）：）是合法用法，不视为歧义
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py 里的重导出属于公共 API 布局，不视为未使用
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agents"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# basetemp 固定到项目内：默认的 %TEMP%/pytest-of-<user>/ 在 Windows 上常因 AV
+# / 残留句柄被拒（WinError 5），整组 tmp_path fixture 失败前根本进不到 test。
+# 项目盘 (E:) 不走 Defender 实时扫描，落盘可控。
+addopts = "-ra --cov=agents --cov-report=term-missing --cov-fail-under=65 --basetemp=.pytest_tmp"
+
+[tool.pyright]
+include = ["src/agents", "tests"]
+exclude = [
+    "**/__pycache__",
+    "**/.venv",
+    "artifacts",
+    "data",
+]
+typeCheckingMode = "basic"
+pythonVersion = "3.11"
+strict = ["src/agents"]

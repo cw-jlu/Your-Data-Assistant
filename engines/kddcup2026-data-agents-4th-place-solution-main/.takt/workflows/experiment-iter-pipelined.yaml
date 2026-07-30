@@ -1,0 +1,517 @@
+name: experiment-iter-pipelined
+description: |
+  Pipelined version of experiment-iter: while bench(T) runs on the API server
+  (~25 min idle for the LLM), the LLM does:
+    1. analyze + log + commit the previously-completed bench (T-1)
+    2. pick + design + implement + smoke the next experiment (T+1)
+  When bench(T) finishes, immediately launch_bench(T+1) and start the cycle
+  again with T+1 as the running bench.
+
+  Pipeline depth = 1 (one bench in flight, one being prepared).
+  Saves ~50% of total iteration wall time vs the sequential workflow.
+
+  First iteration is special: there is no "previous" to analyze, so we
+  bootstrap with a vanilla pick → design → implement → smoke → launch_bench
+  before entering the steady-state loop.
+workflow_config:
+  provider_options:
+    copilot: {}
+knowledge:
+  kddcup2026-state: ../facets/knowledge/kddcup2026-state.md
+max_steps: 1000
+initial_step: bootstrap_pick
+loop_monitors:
+  - cycle:
+      - bootstrap_smoke
+      - bootstrap_implement
+    threshold: 3
+    judge:
+      persona: supervisor
+      instruction: |
+        bootstrap_smoke→bootstrap_implement のループが {cycle_count} 回繰り返されました。
+        違うエラーで進捗があるか、同じ箇所で詰まっているかを判断してください。
+      rules:
+        - condition: 健全（違うエラーで進捗あり）
+          next: bootstrap_smoke
+        - condition: 非生産的（同じ箇所で詰まる）
+          next: ABORT
+  - cycle:
+      - smoke_next
+      - implement_next
+    threshold: 3
+    judge:
+      persona: supervisor
+      instruction: |
+        smoke_next→implement_next のループが {cycle_count} 回繰り返されました。
+        違うエラーで進捗があるか、同じ箇所で詰まっているかを判断してください。
+      rules:
+        - condition: 健全（違うエラーで進捗あり）
+          next: smoke_next
+        - condition: 非生産的（同じ箇所で詰まる）
+          next: ABORT
+  - cycle:
+      - wait_bench_current
+      - check_stalled_current
+    threshold: 30
+    judge:
+      persona: supervisor
+      instruction: |
+        wait_bench_current/check_stalled_current が {cycle_count} 回繰り返されました。
+        ベンチマークが 90 分以上完走していません。/tmp/bench_*.log と
+        プロセス状態を確認し、異常停止か単に重いだけかを判断してください。
+      rules:
+        - condition: ベンチマークプロセスが死んでいる、または明確にエラー
+          next: ABORT
+        - condition: 単に重いだけで継続中
+          next: wait_bench_current
+
+steps:
+  # ===========================================================================
+  # BOOTSTRAP: First iteration only. No "previous" to analyze.
+  # ===========================================================================
+
+  - name: bootstrap_pick
+    edit: false
+    persona: research-planner
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      初回イテレーションの実験選定。`PRIORITIES.md` (URGENT があれば最優先) →
+      `BACKLOG.md` (axis 分散ルール) → `EXPERIMENTS.md` (現状ベスト・negative
+      result 軸) を読み、新実験 `exp_NNN_<slug>` を 1 つ決める。
+
+      **必読**:
+      - `BACKLOG.md` — 実験アイデアの蓄積、軸タグ付き
+      - `EXPERIMENTS.md` — 過去実験の結果ログ・現状ベスト
+      - `PRIORITIES.md` — `[URGENT]` を最優先で拾う
+
+      **選定基準** (優先順):
+      1. `[URGENT]` があれば最優先で消化
+      2. 直近 3 イテレーションで連続して同じ軸タグを試していたら別軸へ
+      3. 現状ベストの最大失敗カテゴリ (zero_recall / missing 等) を直接攻める
+      4. 実装コスト軽 (既存 exp_NNN_* を 1〜2 ファイル差分で派生) を優先
+      5. negative result 確定軸を避ける
+
+      **リーク禁止ルール (CRITICAL)**: `.takt/facets/knowledge/kddcup2026-state.md`
+      の「🚫 厳守ルール: テストデータ・リーク禁止」を必読。fewshot 例・preamble
+      に公開 50 タスク (`data/public/input/task_*`) の question・gold・SQL を
+      verbatim でも構造的にも持ち込まないこと。
+
+      **出力**: `plan.md`
+      - 新実験ディレクトリ名 `exp_NNN_<short-slug>`
+      - 仮説・期待効果レンジ・軸タグ・コピー元・変更点
+    rules:
+      - condition: 選定可能
+        next: bootstrap_design
+      - condition: BACKLOG / PRIORITIES が空
+        next: ABORT
+    output_contracts:
+      report:
+        - name: plan.md
+          format: plan
+
+  - name: bootstrap_design
+    edit: false
+    persona: architect-planner
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      pick の選定 ({report:plan.md}) を最小 diff plan に変換してください。
+      cp -r 元ディレクトリ → sed でモジュール名置換、変更が必要なファイル +
+      before/after 該当箇所、smoke コマンド (`uv run python -m
+      experiments.exp_NNN_<slug>.run run-task task_26`) を書き出すこと。
+
+      **やらないこと**: 既存実験の変更、kobushi_core の API 変更
+    rules:
+      - condition: 設計可能
+        next: bootstrap_implement
+      - condition: 致命的な前提崩れ
+        next: ABORT
+    output_contracts:
+      report:
+        - name: design.md
+          format: plan
+
+  - name: bootstrap_implement
+    edit: true
+    persona: coder
+    policy: coding
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      design の指示通りに実装してください。
+
+      **必須**:
+      - 新しい `src/experiments/exp_NNN_<slug>/` を作る
+      - import が新ディレクトリ名を参照していること
+      - YAML 文法エラー無し
+      - `python -c "from experiments.exp_NNN_<slug>.run import app"` が通ること
+
+      **禁止**: 既存実験の変更、kobushi_core への変更
+
+      **リーク検証**: prompt.py / preamble.py / fewshot 例に公開 50 タスクの
+      question (40 文字以上) や gold 値が含まれないことを `grep -F` で確認。
+    rules:
+      - condition: 実装完了
+        next: bootstrap_smoke
+      - condition: 実装中断
+        next: ABORT
+    output_contracts:
+      report:
+        - name: implement-scope.md
+          format: coder-scope
+        - name: implement-decisions.md
+          format: coder-decisions
+
+  - name: bootstrap_smoke
+    edit: false
+    persona: supervisor
+    instruction: |
+      task_26 でスモーク実行 + gold-shape 比較。
+
+      ```bash
+      timeout 300 uv run python -m experiments.exp_NNN_<slug>.run run-task task_26
+      uv run kobushi evaluate-run artifacts/runs/exp_NNN_<slug>_<seq>
+      ```
+
+      `evaluation.json` の task_26 `diagnosis` を確認:
+      - `perfect_recall_no_extras` または `with_extras` → smoke PASS → bootstrap_launch_bench
+      - `zero_recall` / `partial_recall` / `missing_prediction` → smoke FAIL → bootstrap_implement
+    rules:
+      - condition: succeeded:true and diagnosis perfect/with_extras
+        next: bootstrap_launch_bench
+      - condition: smoke FAIL
+        next: bootstrap_implement
+    output_contracts:
+      report:
+        - name: smoke-result.md
+          format: validation
+
+  - name: bootstrap_launch_bench
+    edit: false
+    persona: supervisor
+    instruction: |
+      ```bash
+      bash scripts/launch_bench.sh <exp_name>
+      ```
+
+      **絶対にやらないこと**: ここで `run-benchmark` を直接呼ぶこと
+      (copilot が hang する)。
+
+      この bench (T=1) は steady-state ループで分析される。
+    rules:
+      - condition: STARTED または ALREADY_RUNNING
+        next: pick_next
+      - condition: 起動失敗
+        next: ABORT
+    output_contracts:
+      report:
+        - name: launch-bench.md
+          format: validation
+
+  # ===========================================================================
+  # STEADY-STATE PIPELINE (loops):
+  #   While bench(T) runs:
+  #     analyze_prev → log_prev → commit_prev      # process bench T-1's results
+  #     pick_next → design_next → implement_next → smoke_next   # prepare T+1
+  #   wait_bench_current (poll bench T)
+  #   launch_bench_next (T+1 fires)
+  #   ↓ loop back to analyze_prev (now bench T is "prev")
+  # ===========================================================================
+
+  - name: analyze_prev
+    edit: false
+    persona: research-analyzer
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      **直前にコミットされていない最新の評価済み run** を分析。
+
+      ```bash
+      # 評価済みかつ EXPERIMENTS.md にまだ追加されていない run を探す
+      ls -td artifacts/runs/exp_*_*/ | head -10
+      # その中で evaluation.json があり EXPERIMENTS.md の Summary 表に
+      # 行が無いものを 1 つ選ぶ
+      ```
+
+      **読むもの**: 該当 run の `evaluation.json` + zero_recall / missing 寄り
+      の数件の `task_*/trace.json`
+
+      **出力 (analysis.md)**:
+      - 仮説の検証結果 (採用 / 却下 / 部分採用)
+      - 現状ベストとの差分 (perfect Δ, score Δ)
+      - 残存する最大失敗カテゴリ
+      - 副作用や意外な発見
+      - 次イテレーションで pick が参考にできる推奨 axis
+
+      **重要**: 同時に走行中の bench (今 wait_bench_current で待ってる方)
+      には触れない。それは次の analyze_prev で扱う。
+
+      **first-time after bootstrap**: 分析対象の評価済み run が無いことが
+      ある (bootstrap の bench がまだ完走してない)。その場合は
+      `## 結果: 分析対象なし` と書いて log_prev / commit_prev は skip し、
+      `pick_next` に進む。
+    rules:
+      - condition: 分析完了 or skip
+        next: log_prev
+    output_contracts:
+      report:
+        - name: analysis.md
+          format: research-report
+
+  - name: log_prev
+    edit: true
+    persona: coder
+    policy: coding
+    instruction: |
+      `EXPERIMENTS.md` / `BACKLOG.md` / `PRIORITIES.md` を更新。
+
+      **EXPERIMENTS.md**:
+      - Summary 表に新行追加 (`scripts/log_experiment_result.py <run_dir>` で自動挿入可)
+      - Per-experiment notes に短い節を追加
+      - 過去ベストを更新した場合は冒頭の「現状ベスト」表記を切り替える
+
+      **BACKLOG.md**:
+      - 試して効果が無かった軸を negative result として注記
+      - 直近 3 イテレーションのアイデア軸の重なりを警告として書く
+
+      **PRIORITIES.md**:
+      - 今回消費した `[URGENT]` エントリは `## Recently consumed` へ移動
+
+      **analyze の結果が "分析対象なし" だった場合**: skip
+    rules:
+      - condition: ログ更新完了 or skip
+        next: commit_prev
+    output_contracts:
+      report:
+        - name: log-update.md
+          format: summary
+
+  - name: commit_prev
+    edit: true
+    persona: coder
+    instruction: |
+      analyze + log で生まれた変更を 1 コミットにまとめる。
+
+      **手順**:
+      1. ブランチ確認: `git rev-parse --abbrev-ref HEAD`。**main / master
+         なら ABORT**。
+      2. 新ベスト判定: analyze の結果から、score が現状ベストを上回ったか
+         確認。上回ったら `submission/main.py` の `EXPERIMENT_NAME` と
+         `submission/Dockerfile` の `ENV EXPERIMENT_NAME=...` を新 exp 名に
+         書き換え。
+      3. ステージング: `git add -A`
+      4. コミット (HEREDOC で):
+         ```
+         feat(exp_NNN_<slug>): <hypothesis 1 行>
+
+         score: <new λ0.5> (vs previous best <best λ0.5>, Δ=<+/-X.XX>)
+         perfect: <new>/50 (Δ <+/-N>)
+         run dir: <run path>
+
+         Co-Authored-By: takt experiment-iter <noreply@anthropic.com>
+         ```
+      5. push はしない。
+
+      **絶対にやらないこと**:
+      - main / master へのコミット
+      - `git push --force` / `git rebase` / `git amend`
+      - 既存実験コードの変更
+      - 走行中の bench に関連するファイルの変更
+
+      **analyze が skip だった場合**: コミットなし、`pick_next` へ
+    rules:
+      - condition: コミット成功 or skip
+        next: pick_next
+      - condition: ブランチが main / master、または致命的 git エラー
+        next: ABORT
+    output_contracts:
+      report:
+        - name: commit-summary.md
+          format: summary
+
+  - name: pick_next
+    edit: false
+    persona: research-planner
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      次イテレーションの実験を選定する。
+
+      **重要なコンテキスト**: 今 bench が 1 つ走行中 (`wait_bench_current`
+      が後ほど待つ予定の bench)。その bench の結果はまだ無いが、
+      `analyze_prev` で完走済みの 1 個前の bench は既に分析・log・commit
+      済み。pick はその情報を基に判断する。
+
+      bootstrap_pick と同じルールに従う:
+      1. `[URGENT]` 最優先
+      2. 直近 3 軸タグ重複避け
+      3. 現状ベストの最大失敗カテゴリ攻め
+      4. 実装コスト軽優先
+      5. negative result 軸避け
+      6. **🚫 リーク禁止ルール厳守**
+
+      **走行中 bench の結果は知らないものとして pick する**。analyze_prev で
+      コミットした内容のみが利用可能。
+
+      **出力**: `plan.md`
+    rules:
+      - condition: 選定可能
+        next: design_next
+      - condition: BACKLOG / PRIORITIES が空
+        next: ABORT
+    output_contracts:
+      report:
+        - name: plan.md
+          format: plan
+
+  - name: design_next
+    edit: false
+    persona: architect-planner
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      pick_next の選定 ({report:plan.md}) を最小 diff plan に変換。
+      bootstrap_design と同内容。
+    rules:
+      - condition: 設計可能
+        next: implement_next
+      - condition: 致命的な前提崩れ
+        next: ABORT
+    output_contracts:
+      report:
+        - name: design.md
+          format: plan
+
+  - name: implement_next
+    edit: true
+    persona: coder
+    policy: coding
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      design の指示通りに新 exp を実装。bootstrap_implement と同内容。
+
+      **走行中の bench に関連するファイルは触らない**。新 `src/experiments/
+      exp_NNN_<slug>/` ディレクトリのみ作成・編集。
+    rules:
+      - condition: 実装完了
+        next: smoke_next
+      - condition: 実装中断
+        next: wait_bench_current
+    output_contracts:
+      report:
+        - name: implement-scope.md
+          format: coder-scope
+        - name: implement-decisions.md
+          format: coder-decisions
+
+  - name: smoke_next
+    edit: false
+    persona: supervisor
+    instruction: |
+      新 exp で task_26 スモーク実行。bootstrap_smoke と同内容。
+
+      **走行中 bench との衝突回避**: smoke は task_26 のみ走らせるので OK。
+      ただし `MAX_WORKERS=1` で実行することを徹底 (走行中 bench の API 帯域を
+      圧迫しないため)。
+    rules:
+      - condition: smoke PASS
+        next: wait_bench_current
+      - condition: smoke FAIL
+        next: implement_next
+    output_contracts:
+      report:
+        - name: smoke-result.md
+          format: validation
+
+  - name: wait_bench_current
+    edit: false
+    persona: supervisor
+    instruction: |
+      **走行中の bench** (1 つ前のイテレーションで launch されたもの) の
+      完了を待つ。
+
+      ```bash
+      bash scripts/poll_bench.sh <current_running_exp_name>
+      ```
+
+      `<current_running_exp_name>` は **直近に launch_bench_next or
+      bootstrap_launch_bench した exp 名**。`/tmp/bench_*.pid` のうち PID が
+      生きているものを探すか、`ls -td artifacts/runs/*/` の最新で
+      evaluation.json が **無い**ものを取る。
+
+      最大 3 分でいずれかを返す:
+      - `READY` → bench 完走、launch_bench_next へ進む
+      - `PENDING` → まだ走行中、check_stalled_current へ
+      - `FAILED` → ABORT
+    rules:
+      - condition: READY
+        next: launch_bench_next
+      - condition: PENDING
+        next: check_stalled_current
+      - condition: FAILED
+        next: ABORT
+    output_contracts:
+      report:
+        - name: wait-bench.md
+          format: validation
+
+  - name: check_stalled_current
+    edit: false
+    persona: supervisor
+    instruction: |
+      走行中 bench の状態を中間チェック。
+
+      ```bash
+      pid=$(cat /tmp/bench_<current_running_exp_name>.pid 2>/dev/null)
+      run_dir=$(ls -1dt artifacts/runs/<current_running_exp_name>_* 2>/dev/null | head -1)
+      if kill -0 "$pid" 2>/dev/null; then
+        echo ALIVE
+      elif [ -n "$run_dir" ] && [ -f "$run_dir/evaluation.json" ]; then
+        echo COMPLETED
+      else
+        echo DEAD
+      fi
+      ```
+
+      ALIVE → wait_bench_current に戻る。
+      COMPLETED → wait_bench_current (次の poll で READY を拾う)。
+      DEAD → ABORT (eval.json も無いまま死亡)。
+    rules:
+      - condition: ALIVE → 引き続き待つ
+        next: wait_bench_current
+      - condition: COMPLETED → 完走済み
+        next: wait_bench_current
+      - condition: DEAD → 本物の異常終了
+        next: ABORT
+    output_contracts:
+      report:
+        - name: check-stalled.md
+          format: validation
+
+  - name: launch_bench_next
+    edit: false
+    persona: supervisor
+    instruction: |
+      smoke_next で smoke 通過した **新 exp** の bench を launch する。
+
+      ```bash
+      bash scripts/launch_bench.sh <new_exp_name>
+      ```
+
+      `<new_exp_name>` は smoke_next で確認した最新の exp 名。
+
+      この bench が **次のイテレーションでの "走行中 bench"** になる。
+      そして直前まで走行していた bench は **次の analyze_prev で分析される**。
+
+      ループバック: `next: analyze_prev` で steady-state ループの先頭に戻る。
+    rules:
+      - condition: STARTED または ALREADY_RUNNING
+        next: analyze_prev
+      - condition: 起動失敗
+        next: ABORT
+    output_contracts:
+      report:
+        - name: launch-bench-next.md
+          format: validation

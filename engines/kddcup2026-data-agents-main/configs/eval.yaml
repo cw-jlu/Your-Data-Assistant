@@ -1,0 +1,71 @@
+# Eval container config — used inside the submitted Docker image.
+#
+# All sensitive / environment-dependent values are blank by design.
+# The eval runtime injects MODEL_API_URL / MODEL_API_KEY / MODEL_NAME
+# as environment variables; config.py overlays env > YAML > default.
+#
+# Do NOT hardcode the API key or URL here. Doing so risks rules
+# violation (the rules require reading from env vars).
+dataset:
+  # DABENCH_INPUT_DIR (env) overrides this. Default points to the
+  # standard mount path used by the eval container.
+  root_path: /input
+
+agent:
+  # Filled in via env vars at eval time.
+  model: ""
+  api_base: ""
+  api_key: ""
+  # Conservative defaults; tuned by phase.
+  max_steps: 16
+  temperature: 0.0
+  # v_next: SC k from 5 → 2. v6 SIGTERM forensic showed hard/extreme
+  # task voting (k=5) burned wall-clock budget. k=2 retains some
+  # voting benefit without 5× LLM cost. Runner.py forces k=1 once
+  # the governor cascades (governor_level >= 1).
+  self_consistency_k: 2
+
+run:
+  # DABENCH_OUTPUT_DIR (env) overrides this.
+  output_dir: /output
+  run_id: null
+  # v8: 6 → 8 workers. v7 validated 6 workers + httpx=200s with 0 LLM
+  # timeouts on 50-task. v8 raises to 8 to better utilize the organizer's
+  # 16 vCPU spec (was ~38% utilized). Paired with BLAS thread cap=2 in
+  # Dockerfile (OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS=2) so 8 workers ×
+  # 2 BLAS threads = 16 vCPU exact match — no oversubscription.
+  # 50-task local eval MUST verify (a) RAM peak ≤ 55 GB, (b) Model
+  # request failed ≤ 2 before ship.
+  max_workers: 8
+  task_timeout_seconds: 240
+  # Required for the eval container — write directly under /output/task_<id>/
+  # rather than under a run_id subdirectory.
+  flat_output_dir: true
+  # Mirror runtime events to /logs/runtime.log per the rules.
+  log_file: /logs/runtime.log
+  # Total wall-clock budget for all tasks (rules: 12h = 43200s).
+  # Governor halves max_steps + per-task timeout when remaining budget
+  # would not cover remaining tasks at the observed average pace.
+  # v6: governor now CASCADES — re-evaluates after every batch and can
+  # downgrade up to 3 times (each halving). With initial hard=900s the
+  # cascade path is 900 → 450 → 225 → 112 (floor 60).
+  wall_clock_budget_seconds: 43200
+  # v5 S-4: Deterministic seeding (S-1) makes repeat_max=2+ wasteful —
+  # same seed gives the same answer, so voting averages identical results.
+  # We drop to repeat_max=1 and reinvest the saved ~67% wall-clock into
+  # longer hard / extreme timeouts (see task_timeout_by_difficulty below).
+  # Fallback: if a future build needs to demote, set DABENCH_REPEAT_MAX=3
+  # via env to restore voting behavior.
+  repeat_max: 1
+  pass_safety_margin: 1.1
+  # v_next: tightened again from v6 (180/360/900/1200). v6 SHIPPED
+  # at score 0.3509 (still SIGTERM at 12h). Run-time forensics suggest
+  # organizer endpoint is ~1.8× slower than our DGX OR hidden set has
+  # more than ~400 tasks. Either way, our 50-task wall-clock × 8 must
+  # fit well under 12h. Trade-off: even more chronic dead-ends get cut
+  # off — but those were 0 score anyway.
+  task_timeout_by_difficulty:
+    easy: 120
+    medium: 240
+    hard: 600
+    extreme: 900

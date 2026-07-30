@@ -1,0 +1,203 @@
+name: experiment-replicate
+description: |
+  Statistical evaluation workflow: pick one promising single-run experiment
+  and re-run it N=5 times to get mean / median / std / 95% CI for λ0.5.
+  Updates EXPERIMENTS.md with the statistical entry; if mean exceeds the
+  current best by > 2σ also flips submission/main.py to the new winner.
+
+  Designed to be run AFTER ~10 discovery iterations under
+  experiment-iter-pipelined-v2.yaml, to filter stochastic luck from real wins.
+
+  Trigger:
+    EXP_WORKFLOW=experiment-replicate bash scripts/loop_experiments.sh
+
+  Pipeline (single candidate per outer iteration):
+    pick_candidate → replicate_5x → analyze_stats → log_stats → commit_stats
+    → ABORT (each outer-iteration handles one candidate)
+
+  loop_experiments.sh restarts takt each outer-iteration so the next
+  candidate is picked on the next pass.
+
+workflow_config:
+  provider_options:
+    copilot: {}
+knowledge:
+  kddcup2026-state: ../facets/knowledge/kddcup2026-state.md
+max_steps: 50
+initial_step: pick_candidate
+
+steps:
+  - name: pick_candidate
+    edit: false
+    persona: research-planner
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      レプリケーション対象の実験を 1 つ選ぶ。
+
+      **読むファイル**:
+      - `EXPERIMENTS.md` — 実験結果ログ
+      - `artifacts/replications/` — 既に統計確定した実験 (重複避け)
+
+      **選定基準** (優先順):
+      1. 1 run スコア λ0.5 が **exp_040 (0.7267) ± 0.03** 圏内
+         (大幅 regression は再検証不要、大幅 win は本物の可能性高く優先)
+      2. リーク汚染ナシ (exp_017/023/026/027/029 等は除外)
+      3. **既に `artifacts/replications/<exp_name>/summary_*.json` がある実験は重複なのでスキップ**
+      4. 軸が多様になるよう、直前回の replication と別 axis を優先
+
+      候補がない (全部統計済 or 全部 regression) 場合:
+      - **baseline 再キャリブレーション** として `exp_040_selfdbg_fence` を選ぶ
+        (server drift 確認のため最低週 1 回)
+
+      **出力**: `target.md`
+      - 選定実験名 `exp_NNN_<slug>`
+      - 選定理由 (1 run スコア / 軸 / 期待効果)
+      - replication N (default 5)
+    rules:
+      - condition: 候補選定可能
+        next: replicate_5x
+      - condition: 候補なし (skip baseline calibration too)
+        next: ABORT
+    output_contracts:
+      report:
+        - name: target.md
+          format: plan
+
+  - name: replicate_5x
+    edit: false
+    persona: supervisor
+    instruction: |
+      `target.md` で選定された実験を **N=5 回** ベンチマーク実行する。
+
+      ```bash
+      bash scripts/replicate_bench.sh <exp_name> 5
+      ```
+
+      このスクリプトは:
+      - launch_bench.sh を 5 回逐次呼び出し (各回新 run dir)
+      - 各 run の完走 (max 90 min) を polling で待つ
+      - 全 5 run 完走後に `mean / median / std / 95% CI` を計算
+      - `artifacts/replications/<exp_name>/summary_<timestamp>.json` 出力
+
+      **総時間**: 約 5 × 25 min = 2 時間程度。
+
+      **絶対にやらないこと**:
+      - スクリプトを直接 5 回連続で `launch_bench.sh` 呼ばない (ALREADY_RUNNING で詰まる)
+      - `replicate_bench.sh` を 1 回呼べば内部で全部やる
+    rules:
+      - condition: PASS (5/5 or N/2 以上の run 完走)
+        next: analyze_stats
+      - condition: FAIL (大半の run 失敗)
+        next: ABORT
+    output_contracts:
+      report:
+        - name: replication-result.md
+          format: validation
+
+  - name: analyze_stats
+    edit: false
+    persona: research-analyzer
+    knowledge:
+      - kddcup2026-state
+    instruction: |
+      replication summary を読んで「真の効果」か「ノイズ」かを判定する。
+
+      **読むファイル**:
+      - `artifacts/replications/<exp_name>/summary_<timestamp>.json` (最新)
+      - `EXPERIMENTS.md` (現状ベストの参照値)
+
+      **判定ルール**:
+      1. **✅ 確定 win**: `mean - exp_040_baseline > +0.02` AND
+         95% CI が exp_040 の baseline 値と重ならない
+      2. **⚠ likely win**: `mean - baseline > +0.01` BUT CI が重なる → さらに n=3 追加が望ましい
+      3. **— noise**: `|mean - baseline| < 0.01` → 効果なし (実装は維持してよいが promote しない)
+      4. **❌ regression**: `mean - baseline < -0.01`
+
+      baseline 値:
+      - 単独 1 run の場合: 0.7267 (exp_040 の 1 run)
+      - 既に baseline 自身を replicate 済なら そのmean を使う
+        (`artifacts/replications/exp_040_selfdbg_fence/summary_*.json` の最新)
+
+      **出力**: `analysis.md`
+      - 判定 (確定 win / likely win / noise / regression)
+      - 統計値 (mean ± std, 95% CI, min/max)
+      - baseline との差分
+      - submission ベストを更新するべきか (確定 win のみ)
+    rules:
+      - condition: 分析完了
+        next: log_stats
+    output_contracts:
+      report:
+        - name: analysis.md
+          format: research-report
+
+  - name: log_stats
+    edit: true
+    persona: coder
+    policy: coding
+    instruction: |
+      `EXPERIMENTS.md` と `PRIORITIES.md` を更新する。
+
+      **EXPERIMENTS.md**:
+      - 該当実験の行に統計値を併記:
+        ```
+        | exp_NNN_<slug> | ... | **0.7267** ✅ (1 run) → **0.7234 ± 0.018** (n=5, CI [0.7140, 0.7328]) | ... |
+        ```
+      - per-experiment notes に統計セクション追加:
+        ```
+        ### exp_NNN_<slug> 統計確定 (n=5、replication 完了)
+        - mean: 0.7234, median: 0.7250, std: 0.018, range: 0.6980 - 0.7400
+        - vs exp_040 baseline: Δ +0.0067 (CI [-0.012, 0.026])
+        - 判定: noise (CI が baseline と重なる、真の効果 < +0.02)
+        ```
+
+      **PRIORITIES.md**:
+      - 確定 win の場合: 「真のリーク無しベスト」エントリを更新
+        + `submission/main.py` の EXPERIMENT_NAME を新 exp 名に書換
+        + `submission/Dockerfile` も同様
+      - noise / regression の場合: PRIORITIES.md に「統計確定: noise/regression」一行追加
+    rules:
+      - condition: ログ更新完了
+        next: commit_stats
+    output_contracts:
+      report:
+        - name: log-update.md
+          format: summary
+
+  - name: commit_stats
+    edit: true
+    persona: coder
+    instruction: |
+      replication 結果を 1 コミットにまとめる。
+
+      **手順**:
+      1. ブランチ確認: main / master なら ABORT
+      2. `git add -A`
+      3. コミット (HEREDOC):
+         ```
+         replicate(exp_NNN_<slug>): n=5 stat eval — <mean> ± <std> [<verdict>]
+
+         lambda_0_5: mean=<mean> median=<median> std=<std>
+         95% CI: [<lo>, <hi>]
+         range: <min> - <max>
+         vs exp_040 baseline: Δ <+/-X.XX>
+         verdict: <confirmed_win / likely_win / noise / regression>
+
+         Co-Authored-By: takt experiment-replicate <noreply@anthropic.com>
+         ```
+      4. push なし
+
+      **絶対にやらないこと**:
+      - main / master へのコミット
+      - `git push` / `git rebase` / `git amend`
+      - 走行中の他 bench に関連するファイルの変更
+    rules:
+      - condition: コミット成功
+        next: ABORT
+      - condition: ブランチが main / master 等
+        next: ABORT
+    output_contracts:
+      report:
+        - name: commit-summary.md
+          format: summary

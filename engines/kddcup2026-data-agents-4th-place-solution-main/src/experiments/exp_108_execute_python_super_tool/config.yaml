@@ -1,0 +1,25 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  temperature: 0.0
+
+run:
+  # workers=10 — REVERTED from 20 on 2026-05-05.
+  # The 5/4 bump to 20 was based on local 20 vCPU upgrade, but local CPU was
+  # never the bottleneck — the local development vLLM saturates at ~13-15
+  # concurrent streams. Empirical evidence (2026-05-05):
+  #   per-task median e2e: 120s @ w=8 → 283s @ w=20 (2.4x slower)
+  #   missing rate: 1-4 @ w=8 → 8-10 @ w=20 (10x worse, 900s cap timeouts)
+  #   12 streams (exp_081): clean (miss=1.0); 18 streams (exp_083): broken (miss=10)
+  # Single-attempt experiments → workers=10 (= 10 streams, safely under cap).
+  # 3-attempt union experiments (exp_081 base) → override to workers=4
+  # in the exp's own config.yaml (= 4 × 3 = 12 streams, matches exp_081
+  # which scored cleanly at miss=1.0).
+  max_workers: 10
+  # 900s baseline (was 600). exp_074 confirmed Type A timeout tasks complete
+  # under 900s — net score effect was -0.03 because the saved tasks gave wrong
+  # answers, but global miss dropped 4→2 which is a clean win for stability.
+  task_timeout_seconds: 900

@@ -1,0 +1,52 @@
+# Build-context excludes. The Dockerfile only COPYs pyproject.toml, uv.lock,
+# configs/, and src/agents/ — everything else just bloats `docker build`
+# upload time (the daemon receives the whole context up-front).
+
+# VCS / IDE / agents
+.git/
+.github/
+.gitignore
+.claude/
+.cursor/
+.vscode/
+.idea/
+
+# Python virtualenvs and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Project-local data / artefacts (mounted at runtime, not baked in)
+data/
+artifacts/
+assets/
+docs/
+!docs/assets/mamba-agent.avif
+tests/
+scripts/
+openspec/
+
+# Local-only configs (api_keys etc.) must never end up in the image
+configs/*.local.yaml
+
+# Loose binaries / archives that have no place in the build context
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.log
+
+# macOS noise
+.DS_Store

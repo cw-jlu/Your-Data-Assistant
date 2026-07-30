@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Data Agent Workspace</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#query-input">跳到提问框</a>
+
+    <div class="app-shell">
+      <header class="app-topbar">
+        <div class="product-lockup" aria-label="Data Agent">
+          <span class="product-mark" aria-hidden="true">
+            <i></i><i></i><i></i>
+          </span>
+          <div>
+            <strong>Data Agent</strong>
+            <span>Local workspace</span>
+          </div>
+        </div>
+
+        <nav class="primary-nav" aria-label="主导航">
+          <button class="nav-item active" data-view="workspace">
+            <span>工作区</span>
+          </button>
+          <button class="nav-item" data-view="runs">
+            <span>运行</span>
+            <span class="nav-count" id="run-count">0</span>
+          </button>
+          <button class="nav-item" data-view="architecture">
+            <span>融合路径</span>
+          </button>
+        </nav>
+
+        <div class="top-actions">
+          <span class="service-state">
+            <i class="status-dot" aria-hidden="true"></i>
+            <span>本地服务</span>
+            <b id="health-label">连接中</b>
+          </span>
+          <span class="sr-only" id="clock">--:--:--</span>
+          <button class="icon-button" id="refresh-button" title="刷新运行状态" aria-label="刷新运行状态">刷新</button>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <header class="view-heading">
+          <div>
+            <p class="eyebrow">DataAgent-Bench</p>
+            <h1 id="page-title">分析工作区</h1>
+          </div>
+          <p>文件、问题、结果和完整 Trace 在同一个本地会话里。</p>
+        </header>
+
+        <section class="view active" id="view-workspace">
+          <div class="workspace-grid">
+            <aside class="context-rail" aria-label="上下文与引擎">
+              <section class="rail-section files-section">
+                <div class="rail-heading">
+                  <div>
+                    <span class="rail-kicker">Context</span>
+                    <h2>文件</h2>
+                  </div>
+                  <button class="small-action" id="rail-upload-trigger" type="button">添加</button>
+                </div>
+                <button class="drop-target" id="drop-target" type="button">
+                  <span class="drop-icon" aria-hidden="true">+</span>
+                  <strong>上传分析资料</strong>
+                  <small>先查看当前引擎能处理的格式</small>
+                </button>
+                <div class="uploaded-files" id="uploaded-files"></div>
+                <button class="format-link" id="format-guide-trigger" type="button">查看支持格式</button>
+              </section>
+
+              <section class="rail-section engine-panel">
+                <div class="rail-heading">
+                  <div>
+                    <span class="rail-kicker">Agents</span>
+                    <h2>推理引擎</h2>
+                  </div>
+                  <button class="small-action" id="select-all" type="button">全选</button>
+                </div>
+                <p class="rail-copy">可单选，也可并行比较多个结果。</p>
+                <div class="engine-grid" id="engine-grid" aria-live="polite">
+                  <div class="skeleton engine-skeleton"></div>
+                  <div class="skeleton engine-skeleton"></div>
+                  <div class="skeleton engine-skeleton"></div>
+                  <div class="skeleton engine-skeleton"></div>
+                </div>
+                <div class="engine-total">
+                  <span>已接入</span>
+                  <strong id="ready-engine-count">-</strong>
+                  <span>个引擎</span>
+                </div>
+              </section>
+            </aside>
+
+            <section class="work-canvas" aria-label="分析对话">
+              <div class="canvas-toolbar">
+                <div>
+                  <span class="canvas-path">Workspace / 新分析</span>
+                  <strong>多引擎分析</strong>
+                </div>
+                <button class="model-button" id="model-settings-trigger" type="button">
+                  qwen3.5-35b-a3b
+                  <span>设置</span>
+                </button>
+              </div>
+
+              <div class="analysis-thread" id="analysis-thread">
+                <section class="welcome-block" id="welcome-block">
+                  <div class="welcome-copy">
+                    <span class="welcome-symbol" aria-hidden="true">DA</span>
+                    <h2>把资料放进来，然后直接提问。</h2>
+                    <p>客户端会构造本地任务，调用所选引擎，并把答案、运行日志、JSON 产物和 SQLite Trace 放在同一条会话中。</p>
+                  </div>
+                  <ol class="workflow-list" aria-label="使用流程">
+                    <li><span>1</span><div><strong>添加文件</strong><small>格式范围跟随当前引擎组合</small></div></li>
+                    <li><span>2</span><div><strong>输入 Query</strong><small>描述要计算、查找或比较的内容</small></div></li>
+                    <li><span>3</span><div><strong>检查结果与 Trace</strong><small>每个中间事件都对用户可见</small></div></li>
+                  </ol>
+                </section>
+                <div class="conversation-feed" id="conversation-feed" aria-live="polite"></div>
+              </div>
+
+              <div class="composer-dock">
+                <div class="composer">
+                  <textarea id="query-input" rows="3" placeholder="针对上传的文件提出问题，例如：比较各组指标并解释异常值"></textarea>
+                  <div class="composer-footer">
+                    <div class="composer-tools">
+                      <button class="composer-icon" id="upload-trigger" title="上传文件" type="button" aria-label="上传文件">+</button>
+                      <button class="composer-icon" id="settings-trigger" title="模型设置" type="button" aria-label="模型设置">设置</button>
+                      <div class="engine-selection-mini" id="engine-selection-mini">未选择引擎</div>
+                    </div>
+                    <button class="send-button" id="launch-button" title="提交 Query" type="button">
+                      <span>运行</span>
+                      <b aria-hidden="true">↗</b>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="upload-popover" id="upload-popover">
+                  <div class="popover-heading">
+                    <div>
+                      <strong>添加文件</strong>
+                      <small>仅保存在本地运行目录</small>
+                    </div>
+                    <button id="choose-files" type="button">选择文件</button>
+                  </div>
+                  <div class="compatibility-summary" id="compatibility-summary"></div>
+                  <div class="file-capabilities" id="file-capabilities"></div>
+                  <details class="compatibility-details">
+                    <summary>查看各引擎的格式差异</summary>
+                    <div id="engine-file-matrix"></div>
+                  </details>
+                  <p>列表按所选引擎取交集。“可上传”表示源码存在对应读取路径，不代表每个问题都能正确回答。</p>
+                </div>
+                <input id="file-input" type="file" multiple hidden />
+
+                <div class="settings-popover" id="settings-popover">
+                  <div class="settings-title">
+                    <strong>模型与运行参数</strong>
+                    <small>OpenAI-compatible endpoint</small>
+                  </div>
+                  <div class="settings-grid">
+                    <label class="field span-2"><span>API 地址</span><input id="api-base" type="url" value="http://127.0.0.1:8000/v1" /></label>
+                    <label class="field"><span>模型</span><input id="model-name" value="qwen3.5-35b-a3b" /></label>
+                    <label class="field"><span>API Key</span><input id="api-key" type="password" placeholder="仅传给子进程" autocomplete="off" /></label>
+                    <label class="field"><span>并发数</span><input id="max-workers" type="number" min="1" max="32" value="2" /></label>
+                    <label class="field"><span>最大步数</span><input id="max-steps" type="number" min="1" max="128" value="16" /></label>
+                    <label class="field"><span>超时（秒）</span><input id="timeout" type="number" min="30" max="21600" value="900" /></label>
+                    <label class="field" id="experiment-field"><span>Kobushi 实验包</span><input id="experiment" value="exp_154_v1_audio_asr" /></label>
+                  </div>
+                </div>
+                <p class="composer-hint">Ctrl / Cmd + Enter 提交。运行后可打开完整 Trace。</p>
+              </div>
+            </section>
+
+            <aside class="inspector-preview" aria-label="Trace 说明">
+              <div class="inspector-heading">
+                <div>
+                  <span class="rail-kicker">Inspector</span>
+                  <h2>完整 Trace</h2>
+                </div>
+                <span class="trace-visibility">用户可见</span>
+              </div>
+              <p class="inspector-copy">每个引擎的过程日志和产物独立记录。运行后从结果卡片直接打开。</p>
+              <div class="trace-map">
+                <div class="trace-map-item">
+                  <span class="trace-index">01</span>
+                  <div><strong>Process log</strong><small>实时 stdout / stderr</small></div>
+                </div>
+                <div class="trace-map-item">
+                  <span class="trace-index">02</span>
+                  <div><strong>JSON artifacts</strong><small>trace.json、summary.json</small></div>
+                </div>
+                <div class="trace-map-item">
+                  <span class="trace-index">03</span>
+                  <div><strong>SQLite tracing</strong><small>tracing.db 表与记录</small></div>
+                </div>
+              </div>
+              <div class="inspector-note">
+                <strong>不会只给最终答案</strong>
+                <p>选择任意运行后，右侧检查器展示完整执行路径，并保留源文件路径。</p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-runs">
+          <div class="section-toolbar">
+            <div>
+              <p class="eyebrow">Run history</p>
+              <h2>运行记录</h2>
+            </div>
+            <div class="legend">
+              <span><i class="ok"></i>成功</span>
+              <span><i class="running"></i>运行中</span>
+              <span><i class="fail"></i>失败</span>
+            </div>
+          </div>
+          <div class="run-list expanded" id="all-runs"></div>
+        </section>
+
+        <section class="view" id="view-architecture">
+          <div class="architecture-intro">
+            <p class="eyebrow">Hybrid runtime</p>
+            <h2>统一客户端，独立引擎边界。</h2>
+            <p>当前版本在适配器层统一文件、Query、运行状态、结果和 Trace。每套 Agent 保持自己的运行环境与演进节奏。</p>
+          </div>
+          <div class="flow">
+            <div class="flow-node source">
+              <small>统一输入</small>
+              <strong>task.json + context/</strong>
+              <span>文件与 Query</span>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-stack">
+              <div class="flow-node"><b>ETL</b><strong>Mamba</strong><span>识别、清洗、结构归一</span></div>
+              <div class="flow-node"><b>GRAPH</b><strong>LangGraph</strong><span>状态编排与多模态理解</span></div>
+              <div class="flow-node"><b>PHASE</b><strong>Kobushi</strong><span>计划、探索、回答、验证</span></div>
+              <div class="flow-node"><b>VOTE</b><strong>Memory ReAct</strong><span>重试、自一致性与错误记忆</span></div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node result">
+              <small>统一输出</small>
+              <strong>prediction.csv</strong>
+              <span>trace + provenance</span>
+            </div>
+          </div>
+          <div class="architecture-grid">
+            <article><span>现在</span><h3>适配器级整合</h3><p>四套引擎独立运行，由客户端统一选择、配置、观察和比较。</p></article>
+            <article><span>下一步</span><h3>能力级融合</h3><p>抽取 ETL、路由、验证器和投票器，形成稳定的混合流水线。</p></article>
+            <article><span>最终</span><h3>策略级路由</h3><p>按数据模态、难度与预算自动选择路径，只在高风险任务触发多引擎共识。</p></article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="drawer-backdrop" id="drawer-backdrop"></div>
+    <aside class="drawer" id="run-drawer" aria-label="运行检查器">
+      <div class="drawer-header">
+        <div>
+          <p class="eyebrow">Run inspector</p>
+          <h2 id="drawer-title">运行详情</h2>
+        </div>
+        <button class="icon-button" id="close-drawer" type="button" aria-label="关闭检查器">关闭</button>
+      </div>
+      <div class="drawer-meta" id="drawer-meta"></div>
+      <div class="drawer-tabs">
+        <button class="active" data-tab="result" type="button">输出结果</button>
+        <button data-tab="trace" type="button">完整 Trace</button>
+      </div>
+      <div class="drawer-pane active" id="drawer-result"><div id="result-output"></div></div>
+      <div class="drawer-pane" id="drawer-trace"><div id="trace-output"></div></div>
+      <button class="stop-button" id="stop-run" type="button">停止运行</button>
+    </aside>
+
+    <div class="toast-stack" id="toast-stack"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

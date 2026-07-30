@@ -1,0 +1,17 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+dataset:
+  # Phase 2 demo dataset (= 60 tasks with video / csv / db / json / doc).
+  root_path: data/phase2_demo/demo_samples_phase2/input
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 64  # matches v11 spec
+  min_steps: 4
+  temperature: 0.0  # _ATTEMPT_TEMPS in runner.py overrides per-attempt
+
+run:
+  # First Phase 2 baseline sample: workers=12 outer × 1 inner attempt = 12 streams.
+  max_workers: 12
+  task_timeout_seconds: 900

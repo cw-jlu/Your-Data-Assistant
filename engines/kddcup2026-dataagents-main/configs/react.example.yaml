@@ -1,0 +1,67 @@
+dataset:
+  root_path: data/public/input             # 相对路径以 PROJECT_ROOT 为基锚定
+
+agent:
+  model: YOUR_MODEL_NAME                   # str (e.g. qwen3.5-35b-a3b)
+  api_base: YOUR_API_BASE_URL              # str（OpenAI 兼容 chat.completions 端点）
+  api_key: YOUR_API_KEY                    # str；若启用 api_keys 池则忽略此字段
+  max_steps: 50                            # int >= 1; 28 gives enough budget for complex multi-step tasks
+  allow_parallel_tool_calls: true          # bool；个别后端不支持 parallel_tool_calls 时设 false
+  max_tokens: 32768                        # int >= 0；0=不下发上限走服务端默认
+  enable_thinking: true                    # bool | null；null = 不下发 extra_body
+  video_tool_choice: auto                  # "auto" | "forced"; forced 仅给已验证后端 opt-in
+  video_max_tokens: 32768                  # int >= 0 | null；null=沿用 max_tokens
+  video_enable_thinking: false             # bool | null；null=继承 enable_thinking；false=nothink 省 token
+
+  # backend_kind 决定思考模式参数在 extra_body 里的位置：
+  # - "vllm":      enable_thinking 嵌套到 chat_template_kwargs
+  # - "dashscope": enable_thinking 走顶层（DashScope OpenAI 兼容模式约定）
+  # - null:        按 api_base 主机名自动推断（openai.resolve_backend_kind）
+  # NEVER 硬编码 vllm：DashScope 演练时 chat_template_kwargs 会被静默忽略，
+  backend_kind: null                       # always null is fine
+
+  # temp=0.6 在 Qwen3 thinking 模式下平衡了质量与稳定性：
+  # - 低于 0.6 (如 0.3) 会触发 repetition，复杂任务 max_steps 耗尽
+  # - 高于 0.6 (如 0.7) 增加 run-to-run variance，翻转题变多
+  temperature: 0.6                         # float in [0, 2]
+  top_p: 0.9                               # float in (0, 1] — narrower than 0.95, reduces variance
+  top_k: 15                                # int >= 1 — narrower than 20, reduces variance
+  min_p: 0.0                               # float in [0, 1]（经 extra_body 透传）
+  presence_penalty: 0.0                    # float in [-2, 2] — Qwen3 thinking-mode default
+
+  # seed: 1024                             # 留空/删除即不下发，走服务端默认
+
+  # ---- Pre-Act Planning (optional) ----
+  # enable_preact: true adds a planning instruction on the first turn.
+  enable_preact: false
+  enable_answer_verifier: false             # bool；false 跳过 LLM 答案校验，节省 token
+
+  # ---- 推荐：多 Key 池 + 跨进程限速 ----
+  # 强烈建议启用——消除 429 限流导致的任务失败 (单次 run 可丢 4-6 题)。
+  # api_keys 与 rate_limit 必须 "要么都写、要么都不写"；只写其一会被 load_app_config 拒绝。
+  # 启用后 runner 按 task_index % len(api_keys) 给每个任务固定 Key，
+  # 单 Key 独立走 RPM+TPM 双令牌桶（filelock 保护，跨进程安全）。
+  api_keys:
+    - YOUR_API_KEY_1
+    - YOUR_API_KEY_2
+  rate_limit:
+    rpm_per_key: 1000                      # int > 0
+    tpm_per_key: 1000000                   # int > 0
+    safety_factor: 0.95                    # float in (0, 1]
+    reserve_output_tokens: 16384            # int > 0；不得超过 agent.max_tokens
+    max_retries: 6                         # int >= 0
+    backoff_initial_seconds: 1.0           # float > 0
+    backoff_max_seconds: 30.0              # float >= backoff_initial_seconds
+
+run:
+  output_dir: artifacts/runs               # 相对路径以 PROJECT_ROOT 为基锚定
+  run_id: null                             # str | null；null = 自动生成 `<UTC YYYYMMDD>-<NNN>`
+  max_workers: 8                           # int >= 1; 8 with dual-key keeps throughput high
+  task_timeout_seconds: 2000               # int；<= 0 关闭单任务超时
+
+  # 跳过名单：问题歧义 / gold 错误 / 数据缺失的题，提交时移除不影响评分。
+  blocklist:
+
+tracing:
+  enabled: false                           # bool；默认关闭，开启后写 SQLite spans 供 dashboard 调试
+  db_path: artifacts/traces.db             # 相对路径以 PROJECT_ROOT 为基锚定

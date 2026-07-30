@@ -1,0 +1,24 @@
+# .gitleaks.toml — historical-leak allowlist for the gitleaks CI job.
+#
+# Background: a DashScope API key was committed to
+# configs/react_baseline.example.yaml in 26029b5 (2026-04-24) and removed
+# in a subsequent commit, but git history retains it. Without an
+# allowlist, every gitleaks run (CI or local) flags that commit and the
+# secrets job reports red on every PR.
+#
+# The right operational fix is key rotation in the DashScope console —
+# this file ONLY silences the historical detection. Adding a commit here
+# is not a substitute for rotation; it is paperwork for the scanner.
+#
+# Maintenance rule: only add a commit hash here AFTER the underlying key
+# has been rotated and the leak is operationally inert. Never add a
+# commit just to silence a noisy scan.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Historical DashScope key in configs/react_baseline.example.yaml. Key has been rotated; entry exists to keep CI green on git-history scan."
+commits = [
+  "26029b52ccf2afb369479b96c22c4388bfb16c29",
+]

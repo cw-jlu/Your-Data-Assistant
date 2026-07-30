@@ -1,0 +1,15 @@
+# Experiment parameters only.
+# Environment-specific paths and credentials are in .env (see .env.example).
+
+agent:
+  model: qwen3.5-35b-a3b
+  max_steps: 32
+  min_steps: 4
+  temperature: 0.0
+
+run:
+  # 3-attempt union enabled: workers=20 outer × 3 inner = up to 60 concurrent
+  # streams. Memory says vLLM is the bottleneck; workers=20 = bench throughput
+  # baseline (~75 min for 50 tasks).
+  max_workers: 20
+  task_timeout_seconds: 900
