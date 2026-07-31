@@ -181,7 +181,7 @@ dist/
 
 - EXE 启动器：2 MB；
 - 完整便携目录：552 MB；
-- ZIP：217 MB。
+- ZIP：约 217–255 MB（取决于本地/CI 的 Qt 打包来源）。
 
 体积主要来自随包提供的 Qt WebEngine/Chromium、Python 运行时和四套 Agent 源码。
 这些文件确保客户端不依赖目标电脑上的 Python、Conda、.NET 或 WebView2。
