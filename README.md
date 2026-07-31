@@ -7,7 +7,7 @@
 3. 输入自然语言 Query；
 4. 查看结果和完整运行 Trace。
 
-客户端使用 Windows WebView2 显示桌面窗口，不会打开外部浏览器。任务记录、
+客户端使用随程序打包的 Qt WebEngine 显示桌面窗口，不会打开外部浏览器。任务记录、
 日志和上传元数据通过 SQLite 持久化，应用重启后仍可查看。
 
 ## 下载与运行
@@ -30,7 +30,7 @@ DataAgent.exe
 系统要求：
 
 - Windows 10 或 Windows 11，64 位；
-- Microsoft Edge WebView2 Runtime；
+- 不需要预装 Python、Conda、.NET、Java 或 WebView2；
 - 首次运行某个 Agent 时需要联网安装其 Python 依赖；
 - 一个 OpenAI-compatible 模型服务及 API Key。
 
@@ -45,6 +45,7 @@ DataAgent.exe
 - 可停止正在运行的任务；
 - SQLite 持久化任务历史、Trace 日志和工作区元数据；
 - 应用异常退出后，未完成任务会恢复为“已中断”状态；
+- Qt WebEngine 与 Python 运行时包含在便携包中；
 - 本地服务只监听随机的 `127.0.0.1` 回环端口，并随窗口关闭。
 
 ## 内置 Agent
@@ -150,7 +151,7 @@ python desktop.py
 
 ## 构建 Windows 客户端
 
-安装 PyInstaller 和 pywebview 后执行：
+安装 PyInstaller 和 PySide6 后执行：
 
 ```powershell
 .\build-windows.ps1
@@ -158,8 +159,8 @@ python desktop.py
 
 构建脚本会：
 
-1. 用 PyInstaller 生成轻量 `onedir` 桌面程序；
-2. 只保留 Windows Edge WebView2 后端；
+1. 用 PyInstaller 生成自包含的 `onedir` 桌面程序；
+2. 打包 Qt WebEngine 和完整 Python 运行时，目标电脑不需要 Python 环境；
 3. 复制四套 Agent 源码；
 4. 将当前 `uv.exe` 放入便携目录；
 5. 生成可作为 GitHub Release 附件的 ZIP。
@@ -176,11 +177,14 @@ dist/
 └── DataAgent-Windows-x64.zip
 ```
 
-当前验证构建约为：
+当前自包含构建约为：
 
-- EXE：5.9 MB；
-- 完整便携目录：166 MB；
-- ZIP：65.6 MB。
+- EXE 启动器：2 MB；
+- 完整便携目录：552 MB；
+- ZIP：217 MB。
+
+体积主要来自随包提供的 Qt WebEngine/Chromium、Python 运行时和四套 Agent 源码。
+这些文件确保客户端不依赖目标电脑上的 Python、Conda、.NET 或 WebView2。
 
 ## 测试
 
@@ -203,7 +207,7 @@ python -m unittest discover -s tests -v
 ```text
 app/
 ├── database.py     # SQLite 数据层
-├── desktop.py      # WebView2 桌面窗口与服务生命周期
+├── desktop.py      # Qt WebEngine 桌面窗口与服务生命周期
 ├── engines.py      # 四套 Agent 适配器
 ├── manager.py      # 任务调度、日志、结果和 Trace
 ├── paths.py        # 开发/打包环境路径解析

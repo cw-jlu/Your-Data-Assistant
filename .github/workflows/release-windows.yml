@@ -36,12 +36,13 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyinstaller==6.21.0 pywebview==6.2.1
+          python -m pip install pyinstaller==6.21.0 pyside6==6.9.2
 
       - name: Run desktop client tests
         shell: pwsh
         run: |
           python -m unittest discover -s tests -p "test_database.py" -v
+          python -m unittest discover -s tests -p "test_desktop.py" -v
           python -m unittest discover -s tests -p "test_engines.py" -v
           python -m unittest discover -s tests -p "test_trace.py" -v
           python -m unittest discover -s tests -p "test_workspaces.py" -v
@@ -49,6 +50,32 @@ jobs:
       - name: Build portable Windows package
         shell: pwsh
         run: .\build-windows.ps1
+
+      - name: Run packaged client self-test
+        shell: pwsh
+        run: |
+          Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Remove-Item Env:CONDA_PREFIX -ErrorAction SilentlyContinue
+          Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+          $env:DATA_AGENT_DATA_ROOT = "$env:RUNNER_TEMP\data-agent-self-test"
+          $process = Start-Process `
+            -FilePath ".\dist\DataAgent\DataAgent.exe" `
+            -ArgumentList "--self-test" `
+            -WindowStyle Hidden `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) {
+            $errorLog = Join-Path $env:DATA_AGENT_DATA_ROOT "startup-error.log"
+            if (Test-Path $errorLog) { Get-Content $errorLog }
+            throw "Packaged self-test failed with exit code $($process.ExitCode)"
+          }
+          $result = Get-Content `
+            (Join-Path $env:DATA_AGENT_DATA_ROOT "self-test.json") `
+            -Raw | ConvertFrom-Json
+          if (-not $result.ok -or $result.engines.Count -ne 4) {
+            throw "Packaged self-test returned an invalid result"
+          }
 
       - name: Verify package and create checksum
         shell: pwsh
@@ -73,6 +100,9 @@ jobs:
                   if name.startswith("engines/") and len(name.split("/")) > 1
               }
               bad_entry = archive.testzip()
+              qt_process = [name for name in names if name.endswith("QtWebEngineProcess.exe")]
+              qt_icu = [name for name in names if name.endswith("PySide6/resources/icudtl.dat")]
+              forbidden_pythonnet = [name for name in names if name.endswith("Python.Runtime.dll")]
 
           if missing:
               raise SystemExit(f"Missing package entries: {missing}")
@@ -80,6 +110,10 @@ jobs:
               raise SystemExit(f"Expected four engines, found: {sorted(engine_roots)}")
           if bad_entry:
               raise SystemExit(f"Corrupt ZIP entry: {bad_entry}")
+          if not qt_process or not qt_icu:
+              raise SystemExit("Bundled Qt WebEngine runtime is incomplete")
+          if forbidden_pythonnet:
+              raise SystemExit(f"Unexpected pythonnet runtime: {forbidden_pythonnet}")
           print(f"Verified {archive_path} with four engine roots")
           '@ | python -
 

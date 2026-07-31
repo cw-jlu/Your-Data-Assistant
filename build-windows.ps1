@@ -18,7 +18,10 @@ python -m PyInstaller `
     --windowed `
     --onedir `
     --name DataAgent `
-    --exclude-module PySide6 `
+    --exclude-module webview `
+    --exclude-module pythonnet `
+    --exclude-module clr `
+    --exclude-module clr_loader `
     --exclude-module PyQt6 `
     --exclude-module PyQt5 `
     --exclude-module qtpy `
