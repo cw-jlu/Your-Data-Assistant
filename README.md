@@ -1,7 +1,6 @@
 # Data Agent Desktop
 
-一个面向本地文件分析的 Windows 桌面客户端，把四套 KDD Cup 2026
-DataAgent-Bench 方案统一到同一套交互流程中：
+一个面向本地文件分析的 Windows 桌面客户端
 
 1. 选择一个或多个 Agent；
 2. 点击上传按钮并选择本地文件；
