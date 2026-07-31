@@ -13,6 +13,7 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const LLM_SETTINGS_KEY = "data-agent.llm-settings.v1";
 
 async function api(path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -47,6 +48,96 @@ function toast(message, detail = "", error = false) {
   el.innerHTML = `<strong>${escapeHtml(message)}</strong>${detail ? `<small>${escapeHtml(detail)}</small>` : ""}`;
   $("#toast-stack").appendChild(el);
   setTimeout(() => el.remove(), 4300);
+}
+
+function updateLlmSummary() {
+  const apiBase = $("#api-base").value.trim();
+  const model = $("#model-name").value.trim();
+  const configured = Boolean(apiBase && model);
+  $("#model-summary").textContent = model || "LLM 未配置";
+  $("#llm-config-state").textContent = configured ? "已配置" : "未配置";
+  $("#global-settings-trigger").classList.toggle("configured", configured);
+}
+
+function loadLlmSettings() {
+  let saved = {};
+  try {
+    saved = JSON.parse(localStorage.getItem(LLM_SETTINGS_KEY) || "{}");
+  } catch (_error) {
+    localStorage.removeItem(LLM_SETTINGS_KEY);
+  }
+  const fields = {
+    "api-base": saved.apiBase,
+    "model-name": saved.model,
+    "max-workers": saved.maxWorkers,
+    "max-steps": saved.maxSteps,
+    timeout: saved.timeout,
+    experiment: saved.experiment,
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    if (value !== undefined && value !== null) $(`#${id}`).value = value;
+  });
+  // API Key is deliberately never restored from localStorage or SQLite.
+  $("#api-key").value = "";
+  updateLlmSummary();
+}
+
+function validateLlmSettings() {
+  const apiBase = $("#api-base").value.trim();
+  const model = $("#model-name").value.trim();
+  if (!apiBase) return "请填写 LLM API URL";
+  if (!model) return "请填写模型名称";
+  try {
+    const url = new URL(apiBase);
+    if (!["http:", "https:"].includes(url.protocol)) return "LLM API URL 必须使用 HTTP 或 HTTPS";
+  } catch (_error) {
+    return "LLM API URL 格式不正确";
+  }
+  return "";
+}
+
+function openSettings() {
+  $("#upload-popover").classList.remove("open");
+  $("#settings-popover").classList.add("open");
+  $("#settings-backdrop").classList.add("open");
+  setTimeout(() => $("#api-base").focus(), 0);
+}
+
+function closeSettings() {
+  $("#settings-popover").classList.remove("open");
+  $("#settings-backdrop").classList.remove("open");
+}
+
+function saveLlmSettings() {
+  const error = validateLlmSettings();
+  if (error) {
+    toast("LLM 设置未完成", error, true);
+    return;
+  }
+  localStorage.setItem(LLM_SETTINGS_KEY, JSON.stringify({
+    apiBase: $("#api-base").value.trim(),
+    model: $("#model-name").value.trim(),
+    maxWorkers: Number($("#max-workers").value),
+    maxSteps: Number($("#max-steps").value),
+    timeout: Number($("#timeout").value),
+    experiment: $("#experiment").value.trim(),
+  }));
+  updateLlmSummary();
+  closeSettings();
+  toast("LLM 设置已保存", "API Key 仅在当前应用进程中保留");
+}
+
+function clearLlmSettings() {
+  localStorage.removeItem(LLM_SETTINGS_KEY);
+  $("#api-base").value = "";
+  $("#model-name").value = "";
+  $("#api-key").value = "";
+  $("#max-workers").value = "2";
+  $("#max-steps").value = "16";
+  $("#timeout").value = "900";
+  $("#experiment").value = "exp_154_v1_audio_asr";
+  updateLlmSummary();
+  toast("LLM 设置已清除", "没有保存任何 API Key");
 }
 
 function switchView(name) {
@@ -271,6 +362,11 @@ function runPayload(query) {
 
 async function launch() {
   const query = $("#query-input").value.trim();
+  const settingsError = validateLlmSettings();
+  if (settingsError) {
+    openSettings();
+    return toast("请先配置 LLM", settingsError, true);
+  }
   if (!state.selected.size) return toast("请选择至少一个引擎", "", true);
   if (!state.workspace?.files?.length) return toast("请先上传资料", "点击输入框下方的＋查看支持格式。", true);
   if (!query) return toast("请输入 Query", "", true);
@@ -571,6 +667,10 @@ async function stopRun() {
 }
 
 function togglePopover(targetId) {
+  if (targetId === "#settings-popover") {
+    openSettings();
+    return;
+  }
   const target = $(targetId);
   const willOpen = !target.classList.contains("open");
   $(".upload-popover").classList.remove("open");
@@ -603,6 +703,23 @@ function bindEvents() {
   $("#model-settings-trigger").addEventListener("click", (event) => {
     event.stopPropagation();
     togglePopover("#settings-popover");
+  });
+  $("#global-settings-trigger").addEventListener("click", (event) => {
+    event.stopPropagation();
+    openSettings();
+  });
+  $("#settings-close").addEventListener("click", closeSettings);
+  $("#settings-backdrop").addEventListener("click", closeSettings);
+  $("#settings-save").addEventListener("click", saveLlmSettings);
+  $("#settings-clear").addEventListener("click", clearLlmSettings);
+  $("#toggle-api-key").addEventListener("click", () => {
+    const input = $("#api-key");
+    const visible = input.type === "text";
+    input.type = visible ? "password" : "text";
+    $("#toggle-api-key").textContent = visible ? "显示" : "隐藏";
+  });
+  ["#api-base", "#model-name"].forEach((selector) => {
+    $(selector).addEventListener("input", updateLlmSummary);
   });
   $("#choose-files").addEventListener("click", () => $("#file-input").click());
   $("#file-input").addEventListener("change", (event) => uploadFiles(event.target.files));
@@ -638,19 +755,17 @@ function bindEvents() {
     if (!event.target.closest(".upload-popover") && !event.target.closest("#upload-trigger")) {
       $("#upload-popover").classList.remove("open");
     }
-    if (!event.target.closest(".settings-popover") && !event.target.closest("#settings-trigger")) {
-      $("#settings-popover").classList.remove("open");
-    }
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     $("#upload-popover").classList.remove("open");
-    $("#settings-popover").classList.remove("open");
+    closeSettings();
     if ($("#run-drawer").classList.contains("open")) closeDrawer();
   });
 }
 
 async function init() {
+  loadLlmSettings();
   bindEvents();
   setInterval(() => {
     $("#clock").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });

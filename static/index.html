@@ -36,6 +36,10 @@
         </nav>
 
         <div class="top-actions">
+          <button class="llm-settings-button" id="global-settings-trigger" type="button">
+            <span>LLM 设置</span>
+            <b id="llm-config-state">未配置</b>
+          </button>
           <span class="service-state">
             <i class="status-dot" aria-hidden="true"></i>
             <span>本地服务</span>
@@ -105,8 +109,8 @@
                   <strong>多引擎分析</strong>
                 </div>
                 <button class="model-button" id="model-settings-trigger" type="button">
-                  qwen3.5-35b-a3b
-                  <span>设置</span>
+                  <span id="model-summary">LLM 未配置</span>
+                  <b>设置</b>
                 </button>
               </div>
 
@@ -160,19 +164,32 @@
                 </div>
                 <input id="file-input" type="file" multiple hidden />
 
-                <div class="settings-popover" id="settings-popover">
+                <div class="settings-backdrop" id="settings-backdrop"></div>
+                <div class="settings-popover" id="settings-popover" role="dialog" aria-modal="true" aria-labelledby="settings-title">
                   <div class="settings-title">
-                    <strong>模型与运行参数</strong>
-                    <small>OpenAI-compatible endpoint</small>
+                    <div>
+                      <span class="settings-kicker">Connection</span>
+                      <strong id="settings-title">LLM 与运行设置</strong>
+                      <small>支持 OpenAI-compatible API；客户端不内置任何 API Key</small>
+                    </div>
+                    <button class="settings-close" id="settings-close" type="button" aria-label="关闭设置">关闭</button>
                   </div>
                   <div class="settings-grid">
-                    <label class="field span-2"><span>API 地址</span><input id="api-base" type="url" value="http://127.0.0.1:8000/v1" /></label>
-                    <label class="field"><span>模型</span><input id="model-name" value="qwen3.5-35b-a3b" /></label>
-                    <label class="field"><span>API Key</span><input id="api-key" type="password" placeholder="仅传给子进程" autocomplete="off" /></label>
+                    <label class="field span-2"><span>LLM API URL</span><input id="api-base" type="url" placeholder="例如：https://api.openai.com/v1" autocomplete="url" spellcheck="false" /></label>
+                    <label class="field"><span>模型名称</span><input id="model-name" placeholder="例如：gpt-5-mini" autocomplete="off" spellcheck="false" /></label>
+                    <label class="field"><span>API Key</span><span class="secret-input"><input id="api-key" type="password" placeholder="由你填写；不会保存" autocomplete="new-password" spellcheck="false" /><button id="toggle-api-key" type="button">显示</button></span></label>
                     <label class="field"><span>并发数</span><input id="max-workers" type="number" min="1" max="32" value="2" /></label>
                     <label class="field"><span>最大步数</span><input id="max-steps" type="number" min="1" max="128" value="16" /></label>
                     <label class="field"><span>超时（秒）</span><input id="timeout" type="number" min="30" max="21600" value="900" /></label>
                     <label class="field" id="experiment-field"><span>Kobushi 实验包</span><input id="experiment" value="exp_154_v1_audio_asr" /></label>
+                  </div>
+                  <div class="settings-security-note">
+                    <strong>Key 仅保留在当前应用进程中</strong>
+                    <span>URL、模型名和运行参数保存在本机；API Key 不写入 localStorage 或 SQLite。</span>
+                  </div>
+                  <div class="settings-actions">
+                    <button class="settings-clear" id="settings-clear" type="button">清除设置</button>
+                    <button class="settings-save" id="settings-save" type="button">保存并使用</button>
                   </div>
                 </div>
                 <p class="composer-hint">Ctrl / Cmd + Enter 提交。运行后可打开完整 Trace。</p>
