@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HTML = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
 JAVASCRIPT = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+STYLES = (ROOT / "static" / "styles.css").read_text(encoding="utf-8")
 
 
 class FrontendSettingsTests(unittest.TestCase):
@@ -36,6 +37,14 @@ class FrontendSettingsTests(unittest.TestCase):
         self.assertNotIn('$("#api-key")', save_function)
         self.assertNotIn("apiKey", save_function)
         self.assertIn("localStorage.setItem", save_function)
+
+    def test_settings_overlay_avoids_gpu_sensitive_backdrop_filters(self) -> None:
+        self.assertNotIn("backdrop-filter", STYLES)
+        open_function = JAVASCRIPT.split("function openSettings()", 1)[1].split(
+            "function closeSettings()", 1
+        )[0]
+        self.assertIn("requestAnimationFrame", open_function)
+        self.assertIn("preventScroll", open_function)
 
     def test_example_config_contains_no_api_key(self) -> None:
         config = (ROOT / "configs" / "react_baseline.local.yaml").read_text(

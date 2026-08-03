@@ -108,8 +108,7 @@ summary:focus-visible {
   align-items: center;
   padding: 0 22px;
   border-bottom: 1px solid var(--border);
-  background: rgba(252, 252, 253, 0.94);
-  backdrop-filter: blur(18px);
+  background: var(--surface);
 }
 
 .product-lockup {
@@ -1166,7 +1165,6 @@ summary:focus-visible {
   inset: 0;
   display: none;
   background: rgba(24, 28, 38, 0.28);
-  backdrop-filter: blur(3px);
 }
 
 .upload-popover.open,
@@ -1767,7 +1765,6 @@ select:focus {
   inset: 0;
   display: none;
   background: rgba(20, 25, 35, 0.24);
-  backdrop-filter: blur(2px);
 }
 
 .drawer-backdrop.open {

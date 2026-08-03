@@ -97,10 +97,18 @@ function validateLlmSettings() {
 }
 
 function openSettings() {
-  $("#upload-popover").classList.remove("open");
-  $("#settings-popover").classList.add("open");
-  $("#settings-backdrop").classList.add("open");
-  setTimeout(() => $("#api-base").focus(), 0);
+  const upload = $("#upload-popover");
+  const popover = $("#settings-popover");
+  const backdrop = $("#settings-backdrop");
+  const apiBase = $("#api-base");
+  if (!popover || !backdrop || !apiBase) {
+    toast("无法打开 LLM 设置", "设置界面加载不完整，请重启客户端。", true);
+    return;
+  }
+  upload?.classList.remove("open");
+  popover.classList.add("open");
+  backdrop.classList.add("open");
+  requestAnimationFrame(() => apiBase.focus({ preventScroll: true }));
 }
 
 function closeSettings() {

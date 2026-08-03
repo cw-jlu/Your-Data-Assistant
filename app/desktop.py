@@ -7,7 +7,7 @@ import threading
 import traceback
 import urllib.request
 
-from PySide6.QtCore import QUrl, Qt
+from PySide6.QtCore import QTimer, QUrl, Qt
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QMainWindow
@@ -33,6 +33,26 @@ class DataAgentWindow(QMainWindow):
         view.setUrl(QUrl(url))
         self.setCentralWidget(view)
         self._view = view
+        self._renderer_reloads = 0
+        page.renderProcessTerminated.connect(self._handle_renderer_terminated)
+
+    def _handle_renderer_terminated(self, status: object, exit_code: int) -> None:
+        """Record and recover a renderer crash instead of losing the window."""
+        if status == QWebEnginePage.RenderProcessTerminationStatus.NormalTerminationStatus:
+            return
+        try:
+            ensure_data_directories()
+            error_path = DATA_ROOT / "renderer-error.log"
+            with error_path.open("a", encoding="utf-8") as stream:
+                stream.write(
+                    f"status={status!s} exit_code={exit_code} "
+                    f"reload={self._renderer_reloads + 1}\n"
+                )
+        except OSError:
+            pass
+        if self.isVisible() and self._renderer_reloads < 2:
+            self._renderer_reloads += 1
+            QTimer.singleShot(250, self._view.reload)
 
 
 def _show_startup_error(message: str, show_dialog: bool = True) -> None:
